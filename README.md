@@ -1,100 +1,57 @@
-# Buddy Monorepo
+# Buddy
 
-Licensed under the O’Saasy License (see LICENSE).
+> An IDE for learning.
+>
+> Licensed under the O’Saasy License (see LICENSE).
 
-A simple CRUD monorepo using:
+Buddy is a persistent AI learning companion built for people who learn constantly and are tired of losing context between sessions. Think opencode, but purpose-built for learning.
 
-- **Backend**: Bun + Hono + hono-openapi
-- **Frontend**: React + Vite + TanStack Router + TanStack Query
-- **UI**: shadcn/ui components in `packages/ui`
-- **SDK**: Auto-generated client (placeholder setup)
+---
 
-## Structure
+## The Problem
 
-```
-buddy/
-├── packages/
-│   ├── buddy/     # Backend API (Hono + OpenAPI)
-│   ├── web/       # Frontend (React + Vite)
-│   ├── ui/        # UI components (shadcn)
-│   └── sdk/       # Generated API client
-├── package.json   # Root workspace config
-└── turbo.json     # Turborepo config
-```
+Most AI tools treat every learning session as a blank slate. You spend the first 10 minutes re-explaining what you've been studying, where you left off, and what you already know. Progress lives in your head (or a scattered collection of markdown files you're manually updating). There's no system that actually knows what you've learned and what's next.
 
-## Getting Started
+---
 
-### 1. Install dependencies
+## What Buddy Does
 
-```bash
-bun install
-```
+Buddy maintains your learning context across sessions so you can pick up exactly where you left off — no setup, no re-explaining yourself.
 
-### 2. Start the backend (from root)
+- **Persistent context** — Buddy remembers what you've studied, what clicked, and what didn't, across every session
+- **Progress tracking** — See where you are in a topic and what you should tackle next
+- **Learning-first conversation** — Buddy engages with you like a learning partner: asking questions, generating exercises, and adapting to how you're doing
+- **Automatic notes** — Session summaries and key insights are saved automatically so your learning artifacts stay up to date
+- **Next topic suggestions** — Based on what you've covered, Buddy surfaces what to explore next
 
-```bash
-bun run dev
-```
+---
 
-The backend will start on http://localhost:3000
+## Who It's For
 
-API docs available at: http://localhost:3000/doc
+Buddy is for self-directed learners who study regularly and want a tool that grows with them — not one that forgets them the moment the session ends.
 
-### 3. Start the frontend (from root, in a new terminal)
+---
 
-```bash
-bun run dev:web
-```
+## Status
 
-The frontend will start on http://localhost:1420
+Currently in early development.
 
-### 4. Test the CRUD
+---
 
-Navigate to http://localhost:1420/items
+## Roadmap
 
-You can:
+- [ ] v1 agent loop
+- [ ] Core session management (start, continue, end)
+- [ ] Cross-session memory and context loading
+- [ ] Progress tracking and curriculum view
+- [ ] Chat interface with exercise generation
+- [ ] Visual knowledge/dependency graph
+- [ ] Spaced repetition reminders
+- [ ] Export notes as blog posts
+- [ ] Voice interface
 
-- Create new items
-- Edit existing items
-- Delete items
-- View all items
+---
 
-## API Endpoints
+## Contributing
 
-- `GET /health` - Health check
-- `GET /doc` - OpenAPI documentation
-- `GET /items` - List all items
-- `GET /items/:id` - Get single item
-- `POST /items` - Create item
-- `PATCH /items/:id` - Update item
-- `DELETE /items/:id` - Delete item
-
-## Scripts (from root)
-
-```bash
-# Start backend dev server (Terminal 1)
-bun run dev
-
-# Start frontend dev server (Terminal 2)
-bun run dev:web
-
-# Type check all packages
-bun run typecheck
-
-# Build all packages
-bun run build
-
-# Generate SDK from OpenAPI
-bun run sdk:generate
-
-# Add shadcn component to shared UI package
-cd packages/ui && bunx shadcn@latest add button
-```
-
-**Note:** Run backend and frontend in separate terminals so you can see logs clearly.
-
-## Notes
-
-- Uses in-memory storage (data resets on restart)
-- OpenAPI spec auto-generated from route definitions
-- TanStack Router generates routes from files in `src/routes/`
+This is a personal project in active iteration. More details coming as the MVP takes shape.
