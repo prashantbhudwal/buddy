@@ -1,5 +1,5 @@
 ---
-name: commit
+name: commit-batch
 description: write clear commit messages and batch changes into logical commits.
 ---
 
