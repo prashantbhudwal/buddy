@@ -1,0 +1,23 @@
+{
+  "name": "@buddy/sdk",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./client": "./src/client.gen.ts",
+    "./types": "./src/types.gen.ts"
+  },
+  "scripts": {
+    "generate": "bun run scripts/generate.ts",
+    "typecheck": "tsc --noEmit",
+    "build": "tsc"
+  },
+  "dependencies": {
+    "@hey-api/client-fetch": "^0.4.0"
+  },
+  "devDependencies": {
+    "@hey-api/openapi-ts": "^0.53.0",
+    "typescript": "^5.0.0"
+  }
+}
