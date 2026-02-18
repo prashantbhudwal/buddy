@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json.schemastore.org/package.json",
+  "name": "buddy",
+  "description": "Buddy monorepo",
+  "private": true,
+  "type": "module",
+  "packageManager": "bun@1.3.9",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "bun run --cwd packages/buddy dev",
+    "dev:web": "bun run --cwd packages/web dev",
+    "build": "turbo run build",
+    "typecheck": "turbo run typecheck",
+    "lint": "turbo run lint",
+    "sdk:generate": "bun run --cwd packages/sdk generate"
+  },
+  "devDependencies": {
+    "turbo": "^2.0.0"
+  }
+}
