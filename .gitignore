@@ -27,7 +27,6 @@ logs/
 Thumbs.db
 
 # Generated files
-packages/sdk/src/client.gen.ts
-packages/sdk/src/types.gen.ts
+packages/sdk/src/gen/
 packages/web/src/routeTree.gen.ts
 .turbo
