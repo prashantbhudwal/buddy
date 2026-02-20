@@ -9,10 +9,11 @@
     "packages/*"
   ],
   "scripts": {
-    "dev": "bun run --cwd packages/buddy dev",
+    "dev": "bun --env-file=.env run --cwd packages/buddy dev",
     "dev:web": "bun run --cwd packages/web dev",
     "build": "turbo run build",
     "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
     "lint": "turbo run lint",
     "sdk:generate": "bun run --cwd packages/sdk generate"
   },
