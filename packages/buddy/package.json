@@ -4,15 +4,19 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "bun run --watch src/index.ts",
+    "dev": "bun --env-file=../../.env run --watch src/index.ts",
     "build": "tsc",
     "typecheck": "tsc --noEmit",
-    "start": "bun run src/index.ts"
+    "start": "bun run src/index.ts",
+    "test": "bun test test"
   },
   "dependencies": {
+    "@ai-sdk/anthropic": "2.0.62",
     "@hono/standard-validator": "^0.2.2",
+    "ai": "5.0.124",
     "hono": "^4.6.0",
     "hono-openapi": "1.1.2",
+    "ulid": "^3.0.1",
     "zod": "^3.23.0"
   },
   "devDependencies": {
