@@ -11,13 +11,21 @@ Editor/assistant rule files:
 - Cursor rules: none found (`.cursor/rules/`, `.cursorrules`)
 - Copilot instructions: none found (`.github/copilot-instructions.md`)
 
+## OpenCode Reference (required)
+Buddy should be built by heavily referencing the OpenCode codebase, not from scratch.
+
+- Treat the OpenCode repo as the default reference/prompt for architecture and implementation details.
+- Prefer porting/copying code (including whole files) from OpenCode and adapting minimally to Buddy's stack.
+- Workflow: before implementing a new agent feature, search OpenCode for the closest equivalent and start from that.
+- OpenCode location: `~/code/opencode` (if that path doesn't exist, also check `~/Code/opencode`).
+
 ## Commands (run from repo root)
 ### Install
 ```bash
 bun install
 ```
 
-### Dev (run in separate terminals)
+### Dev (run in separate terminals
 ```bash
 bun run dev       # backend http://localhost:3000 (PORT=... to override)
 bun run dev:web   # web http://localhost:1420
@@ -145,3 +153,8 @@ bun test --coverage
 - Linting/formatting: eslint + prettier (not set up yet).
 - Storage: sqlite is expected later (current backend uses in-memory arrays).
 - Tauri: do not start a Tauri migration unless explicitly requested.
+
+## Session Learnings (non-obvious)
+- Root `.env` loading is tied to the root `dev` script (`bun --env-file=.env run --cwd packages/buddy dev`); running backend directly from `packages/buddy` can miss `KIMI_API_KEY` unless env file is passed explicitly.
+- `/api` pathing is a multi-package coupling: backend route prefix, SDK generation normalization, SDK client `baseUrl`, and web calls/proxy must stay aligned or chat endpoints fail with misleading 404s.
+- Multi-tenant chat is another cross-package coupling: web directory route/state, SDK directory header, backend directory middleware, and instance-scoped stores must all align or sends appear “stuck” while backend finishes normally.

@@ -5,21 +5,9 @@ description: Buddy agent is modeled after `opencode` - the coding agent. Use thi
 
 ## What I Do
 
-I provide implementation guidance by referencing the OpenCode codebase at `../opencode` (sibling to this repo).
+I provide implementation guidance by referencing the OpenCode codebase at `../opencode` (sibling to this repo)
 
-## When to Use Me
-
-- Implementing SSE event streaming
-- Setting up OpenAPI routes with Hono + Zod
-- Building the agent loop and message/parts system
-- Configuring Tauri with a sidecar backend
-- Setting up event bus architecture
-- Understanding message storage patterns
-- Aligning monorepo tooling and UI setup (Turbo, shadcn/ui)
-
----
-
-## Architecture Overview
+!IMPORTANT: read files from the repository directly. the files, patterns and notes maybe outdates. use them as a guide to browse the opencode repository but never rely on them directly.
 
 ### Stack Alignment
 
