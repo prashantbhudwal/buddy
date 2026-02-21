@@ -33,4 +33,4 @@ export {
   type TextPart as MessageTextPart,
   type ToolPart as MessageToolPart,
 } from "./parts.js"
-
+export { toModelMessages } from "./model.js"

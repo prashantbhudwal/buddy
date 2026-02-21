@@ -26,6 +26,13 @@ function normalizeDirectory(directory: string) {
   return path.resolve(directory)
 }
 
+function containsPath(basePath: string, targetPath: string) {
+  const base = normalizeDirectory(basePath)
+  const target = normalizeDirectory(targetPath)
+  const relative = path.relative(base, target)
+  return relative === "" || (!relative.startsWith("..") && !path.isAbsolute(relative))
+}
+
 async function resolveContext(input: {
   directory: string
   init?: () => Promise<void>
@@ -68,6 +75,12 @@ export const Instance = {
   },
   get project() {
     return context.getStore()?.project ?? FALLBACK_PROJECT
+  },
+  containsPath(filepath: string) {
+    const normalized = normalizeDirectory(filepath)
+    if (containsPath(Instance.directory, normalized)) return true
+    if (Instance.worktree === "/") return false
+    return containsPath(Instance.worktree, normalized)
   },
   state<T>(key: string, init: () => T) {
     return () => {
