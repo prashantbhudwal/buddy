@@ -34,6 +34,15 @@ export namespace SessionPrompt {
   export const PromptInput = z.object({
     sessionID: z.string(),
     content: z.string().min(1),
+    agent: z.string().optional(),
+    noReply: z.boolean().optional(),
+    tools: z.record(z.string(), z.boolean()).optional(),
+    model: z
+      .object({
+        providerID: z.string(),
+        modelID: z.string(),
+      })
+      .optional(),
   })
 
   async function publishMessage(message: MessageWithParts) {
@@ -83,13 +92,28 @@ export namespace SessionPrompt {
     }
 
     const now = Date.now()
+    const permissions: Array<{
+      permission: string
+      pattern: string
+      action: "allow" | "ask" | "deny"
+    }> = []
+    for (const [tool, enabled] of Object.entries(parsed.tools ?? {})) {
+      permissions.push({
+        permission: tool,
+        pattern: "*",
+        action: enabled ? "allow" : "deny",
+      })
+    }
+    if (permissions.length > 0) {
+      SessionStore.setPermission(parsed.sessionID, permissions)
+    }
 
     const userInfo: UserMessage = {
       id: newMessageID(),
       sessionID: parsed.sessionID,
       role: "user",
-      agent: "buddy",
-      model: {
+      agent: parsed.agent ?? "build",
+      model: parsed.model ?? {
         providerID: "anthropic",
         modelID: "k2p5",
       },
@@ -119,16 +143,21 @@ export namespace SessionPrompt {
       messageID: userInfo.id,
       partID: userPart.id,
     })
-    await publishMessage({
+    const publishedUserMessage = {
       info: userInfo,
       parts: [userPart],
-    })
+    } satisfies MessageWithParts
+    await publishMessage(publishedUserMessage)
+
+    if (parsed.noReply === true) {
+      return publishedUserMessage
+    }
 
     const assistantInfo: AssistantMessage = {
       id: newMessageID(),
       sessionID: parsed.sessionID,
       role: "assistant",
-      agent: "buddy",
+      agent: parsed.agent ?? "build",
       time: {
         created: Date.now(),
       },

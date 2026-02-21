@@ -34,6 +34,7 @@ type StepResult = {
   finishReason?: string
   usage: UsageSummary
   sawToolActivity: boolean
+  sawTaskToolActivity: boolean
   sawTextOutput: boolean
 }
 
@@ -142,6 +143,41 @@ async function publishMessage(info: AssistantMessage) {
   await Bus.publish(MessageEvents.Updated, { info })
 }
 
+async function finalizeInFlightToolParts(input: {
+  sessionID: string
+  messageID: string
+  reason: string
+}) {
+  const message = SessionStore.getMessageWithParts(input.sessionID, input.messageID)
+  if (!message) return
+
+  for (const part of message.parts) {
+    if (part.type !== "tool") continue
+    if (part.state.status === "completed" || part.state.status === "error") continue
+
+    const now = Date.now()
+    const start =
+      part.state.status === "running" && part.state.time?.start
+        ? part.state.time.start
+        : now
+
+    const next: MessageToolPart = {
+      ...part,
+      state: {
+        status: "error",
+        input: part.state.input,
+        error: input.reason,
+        time: {
+          start,
+          end: now,
+        },
+      },
+    }
+    SessionStore.updatePart(next)
+    await publishPart(next)
+  }
+}
+
 async function processStep(input: {
   sessionID: string
   assistantMessageID: string
@@ -155,6 +191,7 @@ async function processStep(input: {
   let finishReason: string | undefined
   let usage = emptyUsage()
   let sawToolActivity = false
+  let sawTaskToolActivity = false
   let sawTextOutput = false
 
   const history = SessionStore.listMessages(input.sessionID)
@@ -167,6 +204,8 @@ async function processStep(input: {
   })
 
   const stream = await streamAssistant({
+    sessionID: input.sessionID,
+    messageID: input.assistantMessageID,
     history,
     abortSignal: input.abortSignal,
     forceTextResponseOnly: input.forceTextResponseOnly,
@@ -334,6 +373,9 @@ async function processStep(input: {
         }
         case "tool-call": {
           sawToolActivity = true
+          if (value.toolName === "task") {
+            sawTaskToolActivity = true
+          }
           logSession("processor.tool.running", {
             sessionID: input.sessionID,
             step: input.step,
@@ -368,6 +410,9 @@ async function processStep(input: {
           })
           const existing = toolParts.get(value.toolCallId)
           if (!existing || existing.state.status !== "running") break
+          if (existing.tool === "task") {
+            sawTaskToolActivity = true
+          }
           const parsedOutput = parseToolResult(value.output)
           const completed: MessageToolPart = {
             ...existing,
@@ -397,6 +442,9 @@ async function processStep(input: {
           })
           const existing = toolParts.get(value.toolCallId)
           if (!existing || existing.state.status !== "running") break
+          if (existing.tool === "task") {
+            sawTaskToolActivity = true
+          }
           const failed: MessageToolPart = {
             ...existing,
             state: {
@@ -422,6 +470,7 @@ async function processStep(input: {
             step: input.step,
             finishReason,
             sawToolActivity,
+            sawTaskToolActivity,
             sawTextOutput,
           })
           break
@@ -452,6 +501,7 @@ async function processStep(input: {
     finishReason,
     usage,
     sawToolActivity,
+    sawTaskToolActivity,
     sawTextOutput,
   }
 }
@@ -462,6 +512,7 @@ export async function processAssistantResponse(input: ProcessInput) {
   let hasFailed = false
   let maxStepsReached = false
   let messageUsage = emptyUsage()
+  let forceTextAfterTask = false
   const maxLoopSteps = resolveMaxLoopSteps()
 
   try {
@@ -473,7 +524,7 @@ export async function processAssistantResponse(input: ProcessInput) {
 
     for (let step = 1; step <= maxLoopSteps; step += 1) {
       input.abortSignal.throwIfAborted()
-      const forceTextResponseOnly = step === maxLoopSteps
+      const forceTextResponseOnly = step === maxLoopSteps || forceTextAfterTask
 
       logSession("processor.step.begin", {
         sessionID: input.sessionID,
@@ -492,6 +543,14 @@ export async function processAssistantResponse(input: ProcessInput) {
 
       messageUsage = mergeUsage(messageUsage, result.usage)
       finalFinishReason = result.finishReason ?? finalFinishReason
+      if (result.sawTaskToolActivity && !forceTextAfterTask) {
+        forceTextAfterTask = true
+        logSession("processor.force_text_after_task", {
+          sessionID: input.sessionID,
+          assistantMessageID: input.assistantMessageID,
+          step,
+        })
+      }
 
       const shouldContinue =
         !forceTextResponseOnly &&
@@ -505,8 +564,10 @@ export async function processAssistantResponse(input: ProcessInput) {
         step,
         finishReason: result.finishReason,
         sawToolActivity: result.sawToolActivity,
+        sawTaskToolActivity: result.sawTaskToolActivity,
         sawTextOutput: result.sawTextOutput,
         shouldContinue,
+        forceTextAfterTask,
       })
 
       if (!shouldContinue) {
@@ -552,6 +613,14 @@ export async function processAssistantResponse(input: ProcessInput) {
 
     const assistant = SessionStore.getAssistantInfo(input.sessionID, input.assistantMessageID)
     if (assistant) {
+      if (wasAborted || hasFailed || maxStepsReached) {
+        await finalizeInFlightToolParts({
+          sessionID: input.sessionID,
+          messageID: input.assistantMessageID,
+          reason: wasAborted ? "Tool execution aborted" : hasFailed ? "Tool execution failed" : "Stopped at max steps",
+        })
+      }
+
       const next: AssistantMessage = {
         ...assistant,
         finish:

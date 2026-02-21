@@ -10,6 +10,16 @@ const SESSION_VERSION = "buddy-v1"
 
 type MessageRow = typeof MessageTable.$inferSelect
 type PartRow = typeof PartTable.$inferSelect
+type SessionPermissionRule = {
+  permission: string
+  pattern: string
+  action: "allow" | "ask" | "deny"
+}
+type SessionCreateInput = {
+  parentID?: string
+  title?: string
+  permission?: SessionPermissionRule[]
+}
 
 function toSessionInfo(row: typeof SessionTable.$inferSelect): SessionInfo.Info {
   return {
@@ -95,11 +105,12 @@ export namespace SessionStorage {
     return rows.map(toSessionInfo)
   }
 
-  export function create() {
+  export function create(input?: SessionCreateInput) {
     const now = Date.now()
+    const title = input?.title ?? "New chat"
     const info: SessionInfo.Info = {
       id: newSessionID(),
-      title: "New chat",
+      title,
       time: {
         created: now,
         updated: now,
@@ -111,7 +122,7 @@ export namespace SessionStorage {
         .values({
           id: info.id,
           project_id: Instance.project.id,
-          parent_id: null,
+          parent_id: input?.parentID ?? null,
           slug: info.id,
           directory: Instance.directory,
           title: info.title,
@@ -122,7 +133,7 @@ export namespace SessionStorage {
           summary_files: null,
           summary_diffs: null,
           revert: null,
-          permission: null,
+          permission: input?.permission ?? null,
           time_created: info.time.created,
           time_updated: info.time.updated,
           time_compacting: null,
@@ -142,6 +153,43 @@ export namespace SessionStorage {
         .get(),
     )
     if (!row) return undefined
+    return toSessionInfo(row)
+  }
+
+  export function getPermission(sessionID: string) {
+    const row = Database.use((db) =>
+      db
+        .select()
+        .from(SessionTable)
+        .where(and(eq(SessionTable.id, sessionID), eq(SessionTable.project_id, Instance.project.id)))
+        .get(),
+    )
+    if (!row) return []
+    const value = row.permission
+    if (!Array.isArray(value)) return []
+    return value as Array<{
+      permission: string
+      pattern: string
+      action: "allow" | "ask" | "deny"
+    }>
+  }
+
+  export function setPermission(sessionID: string, permission: SessionPermissionRule[]) {
+    const now = Date.now()
+    const row = Database.use((db) =>
+      db
+        .update(SessionTable)
+        .set({
+          permission,
+          time_updated: now,
+        })
+        .where(and(eq(SessionTable.id, sessionID), eq(SessionTable.project_id, Instance.project.id)))
+        .returning()
+        .get(),
+    )
+    if (!row) {
+      throw new Error(`Session not found: ${sessionID}`)
+    }
     return toSessionInfo(row)
   }
 

@@ -27,8 +27,16 @@ export namespace SessionStore {
     return SessionStorage.list(input)
   }
 
-  export function create() {
-    return SessionStorage.create()
+  export function create(input?: {
+    parentID?: string
+    title?: string
+    permission?: Array<{
+      permission: string
+      pattern: string
+      action: "allow" | "ask" | "deny"
+    }>
+  }) {
+    return SessionStorage.create(input)
   }
 
   export function get(sessionID: string) {
@@ -41,6 +49,17 @@ export namespace SessionStore {
 
   export function setTitle(sessionID: string, title: string) {
     return SessionStorage.setTitle(sessionID, title)
+  }
+
+  export function setPermission(
+    sessionID: string,
+    permission: Array<{
+      permission: string
+      pattern: string
+      action: "allow" | "ask" | "deny"
+    }>,
+  ) {
+    return SessionStorage.setPermission(sessionID, permission)
   }
 
   export function touch(sessionID: string) {
