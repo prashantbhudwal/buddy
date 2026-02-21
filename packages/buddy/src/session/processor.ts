@@ -207,6 +207,7 @@ async function processStep(input: {
         case "reasoning-delta": {
           const part = reasoningParts.get(value.id)
           if (!part) break
+          part.text += value.text
           SessionStore.updatePartDelta({
             sessionID: part.sessionID,
             messageID: part.messageID,
@@ -267,6 +268,7 @@ async function processStep(input: {
         }
         case "text-delta": {
           if (!currentTextPart) break
+          currentTextPart.text += value.text
           SessionStore.updatePartDelta({
             sessionID: currentTextPart.sessionID,
             messageID: currentTextPart.messageID,

@@ -1,13 +1,26 @@
-import path from "path"
+import path from "node:path"
 import { AsyncLocalStorage } from "node:async_hooks"
+import { Project } from "./project.js"
 
 type Context = {
   directory: string
+  worktree: string
+  project: Project.Info
 }
 
 const context = new AsyncLocalStorage<Context>()
 const cache = new Map<string, Promise<Context>>()
 const stateByDirectory = new Map<string, Map<string, unknown>>()
+
+const FALLBACK_PROJECT: Project.Info = {
+  id: "global",
+  worktree: "/",
+  time: {
+    created: 0,
+    updated: 0,
+  },
+  sandboxes: [],
+}
 
 function normalizeDirectory(directory: string) {
   return path.resolve(directory)
@@ -21,15 +34,20 @@ async function resolveContext(input: {
   let existing = cache.get(normalized)
   if (!existing) {
     existing = (async () => {
+      const { project, sandbox } = await Project.fromDirectory(normalized)
+      const nextContext: Context = {
+        directory: normalized,
+        worktree: sandbox,
+        project,
+      }
       stateByDirectory.set(normalized, stateByDirectory.get(normalized) ?? new Map())
       if (input.init) {
-        await context.run({ directory: normalized }, input.init)
+        await context.run(nextContext, input.init)
       }
-      return { directory: normalized }
+      return nextContext
     })()
     cache.set(normalized, existing)
   }
-
   return existing
 }
 
@@ -43,7 +61,13 @@ export const Instance = {
     return context.run(current, input.fn)
   },
   get directory() {
-    return context.getStore()?.directory ?? process.cwd()
+    return context.getStore()?.directory ?? normalizeDirectory(process.cwd())
+  },
+  get worktree() {
+    return context.getStore()?.worktree ?? normalizeDirectory(process.cwd())
+  },
+  get project() {
+    return context.getStore()?.project ?? FALLBACK_PROJECT
   },
   state<T>(key: string, init: () => T) {
     return () => {
@@ -56,5 +80,13 @@ export const Instance = {
       return directoryState.get(key) as T
     }
   },
+  dispose(directory?: string) {
+    const normalized = normalizeDirectory(directory ?? (context.getStore()?.directory ?? process.cwd()))
+    stateByDirectory.delete(normalized)
+    cache.delete(normalized)
+  },
+  disposeAll() {
+    stateByDirectory.clear()
+    cache.clear()
+  },
 }
-

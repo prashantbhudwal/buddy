@@ -6,6 +6,7 @@ import { GlobalRoutes } from './routes/global.js'
 import { SessionRoutes } from './routes/session.js'
 import { allowedDirectoryRoots, isAllowedDirectory, resolveDirectory } from './project/directory.js'
 import { Instance } from './project/instance.js'
+import { Database } from './storage/db.js'
 
 const app = new Hono()
 const api = new Hono()
@@ -58,6 +59,14 @@ app.get(
 const port = process.env.PORT ? parseInt(process.env.PORT) : 3000
 
 if (import.meta.main) {
+  try {
+    Database.Client()
+    console.log(`Storage ready at ${Database.Path}`)
+  } catch (error) {
+    console.error('Failed to initialize storage:', error)
+    process.exit(1)
+  }
+
   if (!process.env.KIMI_API_KEY) {
     console.error(
       'KIMI_API_KEY is missing in the repo root .env file; chat prompts will fail.',

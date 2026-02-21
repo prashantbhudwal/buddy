@@ -7,6 +7,7 @@ import { SessionPrompt } from "../session/prompt.js"
 import { SessionInfo } from "../session/session-info.js"
 import { SessionStore } from "../session/session-store.js"
 import { errorSession, logSession, stringifyError } from "../session/debug.js"
+import { resolveDirectory } from "../project/directory.js"
 
 const ErrorResponse = z.object({
   error: z.string(),
@@ -18,7 +19,7 @@ export const SessionRoutes = () =>
       "/",
       describeRoute({
         summary: "List sessions",
-        description: "List sessions for the current project directory.",
+        description: "List sessions for the current project.",
         operationId: "session.list",
         responses: {
           200: {
@@ -35,11 +36,17 @@ export const SessionRoutes = () =>
         "query",
         z.object({
           limit: z.coerce.number().int().min(1).max(200).optional(),
+          directory: z.string().optional(),
         }),
       ),
       async (c) => {
         const query = c.req.valid("query")
-        return c.json(SessionStore.list({ limit: query.limit }))
+        return c.json(
+          SessionStore.list({
+            limit: query.limit,
+            directory: query.directory ? resolveDirectory(query.directory) : undefined,
+          }),
+        )
       },
     )
     .post(
