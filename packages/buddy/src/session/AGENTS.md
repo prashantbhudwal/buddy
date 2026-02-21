@@ -7,3 +7,5 @@
 - Prompt text files are runtime assets loaded with `Bun.file(new URL(...))`; build must copy `src/session/prompts/*.txt` into `dist/session/prompts`.
 - Session storage is tenant-scoped via `Instance.state`; direct calls outside `Instance.provide({ directory })` collapse into the cwd tenant and can mask isolation bugs.
 - Session/bus isolation tests should always run per explicit directory context; otherwise tests pass while multi-project runtime behavior still leaks.
+- With project-scoped session persistence, busy/abort runtime state must be keyed by `Instance.project.id` (not directory) or the same session can run concurrently across nested directories in one repo.
+- In `processor.ts`, `text-delta`/`reasoning-delta` must also mutate in-memory part text; otherwise final `part.updated` at `*-end` can overwrite streamed UI content with stale empty text.
