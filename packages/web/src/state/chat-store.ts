@@ -5,6 +5,7 @@ import type {
   MessageInfo,
   MessagePart,
   MessageWithParts,
+  PermissionRequest,
   SessionInfo,
 } from "./chat-types"
 import { appendPartDelta, inferBusyFromMessages, upsertMessage, upsertPart } from "./chat-reducer"
@@ -35,6 +36,9 @@ type ChatStore = {
     directory: string,
     input: { sessionID: string; messageID: string; partID: string; field: string; delta: string },
   ) => void
+  setPendingPermissions: (directory: string, requests: PermissionRequest[]) => void
+  applyPermissionAsked: (directory: string, request: PermissionRequest) => void
+  applyPermissionReplied: (directory: string, requestID: string) => void
   setStreamStatus: (status: StreamStatus) => void
 }
 
@@ -46,6 +50,7 @@ function emptyDirectoryState(): DirectoryChatState {
     sessions: [],
     sessionStatusByID: {},
     messages: [],
+    pendingPermissions: [],
     isBusy: false,
     isReady: false,
   }
@@ -356,6 +361,51 @@ export const useChatStore = create<ChatStore>()(
                   ...current.sessionStatusByID,
                   [input.sessionID]: inferredBusy ? "busy" : "idle",
                 },
+              },
+            },
+          }
+        })
+      },
+      setPendingPermissions(directory, requests) {
+        set((state) => ({
+          directories: {
+            ...state.directories,
+            [directory]: {
+              ...ensureDirectoryState(state as ChatStore, directory),
+              pendingPermissions: requests,
+            },
+          },
+        }))
+      },
+      applyPermissionAsked(directory, request) {
+        set((state) => {
+          const current = ensureDirectoryState(state as ChatStore, directory)
+          const existingIndex = current.pendingPermissions.findIndex((item) => item.id === request.id)
+          const nextPending =
+            existingIndex === -1
+              ? [...current.pendingPermissions, request]
+              : current.pendingPermissions.map((item, index) => (index === existingIndex ? request : item))
+
+          return {
+            directories: {
+              ...state.directories,
+              [directory]: {
+                ...current,
+                pendingPermissions: nextPending,
+              },
+            },
+          }
+        })
+      },
+      applyPermissionReplied(directory, requestID) {
+        set((state) => {
+          const current = ensureDirectoryState(state as ChatStore, directory)
+          return {
+            directories: {
+              ...state.directories,
+              [directory]: {
+                ...current,
+                pendingPermissions: current.pendingPermissions.filter((item) => item.id !== requestID),
               },
             },
           }

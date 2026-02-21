@@ -1,9 +1,9 @@
 import { createBuddyClient } from "@buddy/sdk"
 import { useChatStore } from "./chat-store"
-import type { MessageWithParts, SessionInfo } from "./chat-types"
+import type { MessageWithParts, PermissionRequest, SessionInfo } from "./chat-types"
 
-const POST_PROMPT_RESYNC_INTERVAL_MS = 350
-const POST_PROMPT_RESYNC_ATTEMPTS = 24
+const POST_PROMPT_RESYNC_INTERVAL_MS = 1000
+const POST_PROMPT_RESYNC_ATTEMPTS = 600
 
 function clientFor(directory: string) {
   return createBuddyClient({ directory })
@@ -99,6 +99,20 @@ export async function loadMessages(directory: string, sessionID: string) {
   }
 }
 
+export async function loadPermissions(directory: string) {
+  const store = useChatStore.getState()
+  try {
+    const query = new URLSearchParams({ directory })
+    const requests = await requestJson<PermissionRequest[]>(directory, `/api/permission?${query.toString()}`)
+    store.setPendingPermissions(directory, requests)
+    store.setDirectoryError(directory, undefined)
+    return requests
+  } catch (error) {
+    store.setDirectoryError(directory, stringifyError(error))
+    throw error
+  }
+}
+
 async function createSession(directory: string) {
   const store = useChatStore.getState()
   const sdk = clientFor(directory)
@@ -143,6 +157,7 @@ export async function ensureDirectorySession(directory: string) {
     }
 
     await loadMessages(directory, info.id)
+    await loadPermissions(directory)
     store.setDirectoryReady(directory, true)
     return info
   } catch (error) {
@@ -224,9 +239,10 @@ export async function abortPrompt(directory: string) {
   const sdk = clientFor(directory)
   try {
     const aborted = await unwrap<boolean>(sdk.session.abort({ sessionID }))
-    if (aborted) {
-      store.applySessionStatus(directory, sessionID, "idle")
-    }
+    if (aborted) store.applySessionStatus(directory, sessionID, "idle")
+    // Always resync once after abort attempt so UI doesn't stay stale if server state drifted.
+    void loadMessages(directory, sessionID).catch(() => undefined)
+    void loadSessions(directory).catch(() => undefined)
     return aborted
   } catch (error) {
     store.setDirectoryError(directory, stringifyError(error))
@@ -238,8 +254,42 @@ export async function resyncDirectory(directory: string) {
   const store = useChatStore.getState()
   const sessionID = store.directories[directory]?.sessionID
   await loadSessions(directory)
+  await loadPermissions(directory)
   if (!sessionID) return
   await loadMessages(directory, sessionID)
+}
+
+export async function replyPermission(input: {
+  directory: string
+  requestID: string
+  reply: "once" | "always" | "reject"
+  message?: string
+}) {
+  const response = await fetch(`/api/permission/${encodeURIComponent(input.requestID)}/reply`, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      "x-buddy-directory": directoryHeaderValue(input.directory),
+    },
+    body: JSON.stringify({
+      reply: input.reply,
+      message: input.message,
+    }),
+  })
+
+  if (!response.ok) {
+    const payload = (await response.json().catch(() => undefined)) as
+      | { error?: string; message?: string }
+      | undefined
+    const message = payload?.error ?? payload?.message ?? `Request failed (${response.status})`
+    throw new Error(message)
+  }
+
+  const result = (await response.json()) as boolean
+  if (result) {
+    useChatStore.getState().applyPermissionReplied(input.directory, input.requestID)
+  }
+  return result
 }
 
 function sleep(ms: number) {
