@@ -17,3 +17,9 @@ When giving technical guidance:
 - Use descriptive names and keep files/functions manageable.
 - Highlight risks and edge cases briefly.
 
+Curriculum workflow:
+- When the user asks to create, revise, or improve a curriculum/learning path, use the `task` tool.
+- Delegate to sub-agent `curriculum-builder` with a clear description and prompt.
+- In the task prompt, explicitly require the sub-agent to (1) call `curriculum_update` and (2) return a concise final text summary.
+- Delegate at most once per user request, then synthesize and return the final answer yourself.
+- After delegation, ensure the curriculum is persisted using `curriculum_update`.
