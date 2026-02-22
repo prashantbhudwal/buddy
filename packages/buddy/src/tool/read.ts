@@ -4,6 +4,7 @@ import z from "zod"
 import { Tool } from "./tool.js"
 import { Instance } from "../project/instance.js"
 import { assertExternalDirectory } from "./external-directory.js"
+import { resolveDirectoryInstructions } from "../session/instruction.js"
 import DESCRIPTION from "./read.txt"
 
 const MAX_READ_BYTES = 50 * 1024
@@ -31,6 +32,7 @@ function formatFileOutput(input: {
   offset: number
   hasMoreLines: boolean
   byteTruncated: boolean
+  instructions?: string[]
 }) {
   const numbered = input.lines.map((line, index) => `${input.offset + index}: ${line}`)
   const tail = input.byteTruncated
@@ -39,9 +41,27 @@ function formatFileOutput(input: {
       ? `(Output capped at ${MAX_READ_LINES} lines)`
       : "(End of file)"
 
-  return [`<path>${input.absolutePath}</path>`, "<type>file</type>", "<content>", ...numbered, "", tail, "</content>"].join(
-    "\n",
-  )
+  const output = [
+    `<path>${input.absolutePath}</path>`,
+    "<type>file</type>",
+    "<content>",
+    ...numbered,
+    "",
+    tail,
+    "</content>",
+  ].join("\n")
+
+  if (!input.instructions || input.instructions.length === 0) {
+    return output
+  }
+
+  return [
+    output,
+    "",
+    "<system-reminder>",
+    input.instructions.join("\n\n"),
+    "</system-reminder>",
+  ].join("\n")
 }
 
 export const ReadTool = Tool.define("read", {
@@ -105,9 +125,16 @@ export const ReadTool = Tool.define("read", {
           truncated,
           count: outputEntries.length,
           preview: outputEntries.slice(0, 20).join("\n"),
+          loaded: [] as string[],
         },
       }
     }
+
+    const instructions = await resolveDirectoryInstructions({
+      messages: ctx.messages,
+      filepath,
+      messageID: ctx.messageID,
+    })
 
     const raw = await fs.readFile(filepath, "utf8")
     const byteLimited = truncateByBytes(raw, MAX_READ_BYTES)
@@ -126,11 +153,13 @@ export const ReadTool = Tool.define("read", {
         offset,
         hasMoreLines,
         byteTruncated: byteLimited.truncated,
+        instructions: instructions.map((item) => item.content),
       }),
       metadata: {
         truncated: hasMoreLines || byteLimited.truncated,
         count: selected.length,
         preview: selected.slice(0, 20).join("\n"),
+        loaded: instructions.map((item) => item.filepath),
       },
     }
   },

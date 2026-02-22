@@ -50,6 +50,7 @@ export const ToolStateCompleted = z.object({
   time: z.object({
     start: z.number(),
     end: z.number(),
+    compacted: z.number().optional(),
   }),
 })
 
@@ -172,4 +173,3 @@ export type Part = z.infer<typeof Part>
 export type TextPart = z.infer<typeof TextPart>
 export type ReasoningPart = z.infer<typeof ReasoningPart>
 export type ToolPart = z.infer<typeof ToolPart>
-

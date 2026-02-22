@@ -14,6 +14,11 @@ function hasChecklistMarker(markdown: string) {
 }
 
 export namespace CurriculumService {
+  type Document = {
+    path: string
+    markdown: string
+  }
+
   export function validate(markdown: string) {
     if (!markdown.trim()) {
       throw new Error("Curriculum markdown cannot be empty")
@@ -23,7 +28,7 @@ export namespace CurriculumService {
     }
   }
 
-  export async function read() {
+  export async function peek(): Promise<Document | undefined> {
     const filepath = CurriculumPath.file()
     const markdown = await fs.readFile(filepath, "utf8").catch(() => undefined)
 
@@ -37,19 +42,31 @@ export namespace CurriculumService {
     const legacyPath = CurriculumPath.legacyFile()
     const legacyMarkdown = await fs.readFile(legacyPath, "utf8").catch(() => undefined)
     if (legacyMarkdown !== undefined) {
-      await fs.mkdir(CurriculumPath.directory(), { recursive: true })
-      await fs.writeFile(filepath, legacyMarkdown, "utf8")
       return {
-        path: filepath,
+        path: legacyPath,
         markdown: legacyMarkdown,
       }
     }
 
-    await write(DEFAULT_CURRICULUM)
-    return {
-      path: filepath,
-      markdown: DEFAULT_CURRICULUM,
+    return undefined
+  }
+
+  export async function read(): Promise<Document> {
+    const existing = await peek()
+    if (existing) {
+      const canonicalPath = CurriculumPath.file()
+      if (existing.path !== canonicalPath) {
+        await fs.mkdir(CurriculumPath.directory(), { recursive: true })
+        await fs.writeFile(canonicalPath, existing.markdown, "utf8")
+        return {
+          path: canonicalPath,
+          markdown: existing.markdown,
+        }
+      }
+      return existing
     }
+
+    return write(DEFAULT_CURRICULUM)
   }
 
   export async function write(markdown: string) {

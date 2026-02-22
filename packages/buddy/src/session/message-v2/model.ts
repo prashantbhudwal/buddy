@@ -130,12 +130,15 @@ export function toModelMessages(history: MessageWithParts[]): ModelMessage[] {
       toolNames.add(part.tool)
 
       if (part.state.status === "completed") {
+        const outputText = part.state.time.compacted
+          ? "[Old tool result content cleared]"
+          : part.state.output
         assistantMessage.parts.push({
           type: (`tool-${part.tool}` as `tool-${string}`),
           state: "output-available",
           toolCallId: part.callID,
           input: asToolInput(part.state.input),
-          output: part.state.output,
+          output: outputText,
           callProviderMetadata: part.metadata,
         })
         continue
