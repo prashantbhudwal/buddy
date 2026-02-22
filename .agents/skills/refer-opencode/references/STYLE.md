@@ -1,109 +1,53 @@
-# Code Style Guide
+# Style Guide For OpenCode→Buddy Porting
 
-From OpenCode's AGENTS.md files.
+This guide is about preserving behavior parity without importing style noise.
 
-## General Principles
+## Primary Rule
 
-- Keep things in one function unless composable or reusable
-- Avoid `try`/`catch` where possible
-- Avoid using the `any` type
-- Prefer single word variable names where possible
-- Use Bun APIs when possible, like `Bun.file()`
-- Rely on type inference when possible; avoid explicit type annotations or interfaces unless necessary for exports or clarity
-- Prefer functional array methods (flatMap, filter, map) over for loops; use type guards on filter to maintain type inference downstream
+Match behavior first, style second.
 
-## Naming
+Order of precedence:
 
-Prefer single-word names for variables and functions. Only use multiple words if necessary.
+1. Buddy repository style conventions and AGENTS instructions
+2. Existing file-local style in Buddy
+3. OpenCode style cues only when 1 and 2 are silent
 
-```typescript
-// Good
-const foo = 1
-function journal(dir: string) {}
+## Porting Principles
 
-// Bad
-const fooBar = 1
-function prepareJournal(dir: string) {}
-```
+- Port minimal, reviewable behavior changes.
+- Avoid drive-by refactors when copying logic.
+- Keep Buddy naming/module boundaries when possible.
+- Keep OpenCode reference in commit/task notes, not as inline noise comments.
 
-Reduce total variable count by inlining when a value is only used once.
+## What To Preserve From OpenCode
 
-```typescript
-// Good
-const journal = await Bun.file(path.join(dir, "journal.json")).json()
+- tool/session/permission semantics
+- edge-case handling that fixes real bugs
+- proven guardrails (loop limits, truncation flow, permission checks)
 
-// Bad
-const journalPath = path.join(dir, "journal.json")
-const journal = await Bun.file(journalPath).json()
-```
+## What Not To Copy Blindly
 
-## Destructuring
+- OpenCode-only product assumptions
+- OpenCode package topology (`server/*`, `app/*`) when Buddy differs
+- stylistic micro-patterns that reduce Buddy readability in current files
 
-Avoid unnecessary destructuring. Use dot notation to preserve context.
+## Buddy-Specific Constraints To Respect
 
-```typescript
-// Good
-obj.a
-obj.b
+- Preserve Buddy route/module naming (`routes/*`, `session/system-prompt.ts`, etc.).
+- Keep React/Vite/TanStack frontend assumptions (not Solid-specific patterns).
+- Maintain existing imports and ESM resolution expectations in Buddy backend.
 
-// Bad
-const { a, b } = obj
-```
+## Practical Editing Rules
 
-## Variables
+- Keep diffs narrow to parity target files from `pairs.tsv`.
+- If a dependency chain forces additional edits, document why in `sync-log.md`.
+- Do not normalize semicolons/quotes/import order across unrelated lines.
+- Avoid adding `any`; use narrowing or schema-backed typing.
 
-Prefer `const` over `let`. Use ternaries or early returns instead of reassignment.
+## Verification Rules
 
-```typescript
-// Good
-const foo = condition ? 1 : 2
+- Parity-core changes should include:
+  - workflow from `opencore-pairity/sync-checklist.md`
+- Add `sync-log.md` entry with upstream references and decision (`synced`, `partial-sync`, `deferred`).
 
-// Bad
-let foo
-if (condition) foo = 1
-else foo = 2
-```
-
-## Control Flow
-
-Avoid `else` statements. Prefer early returns.
-
-```typescript
-// Good
-function foo() {
-  if (condition) return 1
-  return 2
-}
-
-// Bad
-function foo() {
-  if (condition) return 1
-  else return 2
-}
-```
-
-## Schema Definitions (Drizzle)
-
-Use snake_case for field names so column names don't need to be redefined as strings.
-
-```typescript
-// Good
-const table = sqliteTable("session", {
-  id: text().primaryKey(),
-  project_id: text().notNull(),
-  created_at: integer().notNull(),
-})
-
-// Bad
-const table = sqliteTable("session", {
-  id: text("id").primaryKey(),
-  projectID: text("project_id").notNull(),
-  createdAt: integer("created_at").notNull(),
-})
-```
-
-## Testing
-
-- Avoid mocks as much as possible
-- Test actual implementation, do not duplicate logic into tests
-- Tests cannot run from repo root (guard: `do-not-run-tests-from-root`); run from package dirs like `packages/opencode`
+Do not copy volatile command outputs or drift snapshots into this skill.

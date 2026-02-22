@@ -1,233 +1,80 @@
-# Implementation Patterns
+# Implementation Patterns (Parity-Aware)
 
-Code examples from OpenCode for buddy development.
+Use these patterns when applying OpenCode to Buddy.
 
-## 1. SSE Endpoint (Hono)
+## 1) Classify First: `parity-core` vs `buddy-product`
 
-```typescript
-// packages/opencode/src/server/routes/global.ts:41-108
-import { streamSSE } from 'hono/streaming'
+Use this decision table before touching code:
 
-app.get('/event', async (c) => {
-  c.header('X-Accel-Buffering', 'no')
-  return streamSSE(c, async (stream) => {
-    // Send connected event
-    stream.writeSSE({
-      data: JSON.stringify({
-        payload: { type: 'server.connected', properties: {} },
-      }),
-    })
+| Change type | Classification | Action |
+| --- | --- | --- |
+| tool execution, agent loop, permission matching, runtime/session plumbing | parity-core | map in `pairs.tsv`, run parity scripts, log sync |
+| learning UX/domain behavior, curriculum/memory strategy, React presentation | buddy-product | use OpenCode as inspiration, do not force parity mapping |
 
-    // Subscribe to global bus
-    GlobalBus.on('event', handler)
+## 2) Single Source Pattern
 
-    // Heartbeat every 10-30s (prevents timeout)
-    const heartbeat = setInterval(() => {
-      stream.writeSSE({
-        data: JSON.stringify({
-          payload: { type: 'server.heartbeat', properties: {} },
-        }),
-      })
-    }, 10_000)
+When working parity-core tasks, do not restate dynamic process details here.
+Use `opencore-pairity/sync-checklist.md` as the executable workflow.
 
-    // Handle abort
-    stream.onAbort(() => {
-      clearInterval(heartbeat)
-      GlobalBus.off('event', handler)
-    })
-  })
-})
-```
+## 3) Minimal-Port Pattern
 
-## 2. Event Buffering (Client-Side)
+Port behavior, not whole subsystems.
 
-```typescript
-// packages/app/src/context/global-sync.tsx
-// High-frequency events → 16ms buffer → batch update
+Good:
 
-let queue = []
-const coalesced = new Map<string, number>()
+- Copy a specific loop guard or permission-matching fix from OpenCode.
+- Keep Buddy's package boundaries and naming.
 
-// Coalesce: if same key, replace old event with new
-if (existingIndex !== undefined) {
-  queue[existingIndex] = undefined // mark for skip
-}
-coalesced.set(key, queue.length)
-queue.push(event)
+Bad:
 
-// Throttle: flush every 16ms (60fps)
-timer = setTimeout(flush, Math.max(0, 16 - elapsed))
-```
+- Copy full unrelated modules "for consistency."
+- Pull OpenCode app/UI assumptions into Buddy backend parity files.
 
-## 3. OpenAPI Route Pattern
+## 4) Mapping-Driven Pattern
 
-```typescript
-import { describeRoute, validator, resolver } from 'hono-openapi'
-import z from 'zod'
+Always resolve counterparts from `opencore-pairity/pairs.tsv` first.
+If no row exists, use coverage tooling and then add a mapping row.
 
-const Schema = z.object({
-  sessionID: z.string(),
-  text: z.string(),
-})
+Do not maintain duplicate mapping lists in this skill file.
 
-app.post(
-  '/session/prompt',
-  describeRoute({
-    summary: 'Send prompt',
-    request: {
-      body: {
-        content: {
-          'application/json': { schema: resolver(Schema) },
-        },
-      },
-    },
-  }),
-  validator('json', Schema),
-  async (c) => {
-    const body = c.req.valid('json') // typed!
-    return c.json({ success: true })
-  },
-)
-```
+## 5) Parity Mapping Update Pattern
 
-## 4. SDK Generation Workflow
+When a new parity-core file appears:
 
-```bash
-# 1. Backend exposes OpenAPI spec
-app.get("/doc", (c) => c.json(app.getOpenAPIDocument()))
+1. add row to `opencore-pairity/pairs.tsv`
+2. follow `opencore-pairity/sync-checklist.md`
+3. record decision in `opencore-pairity/sync-log.md`
 
-# 2. Generate SDK (one command)
-bun run packages/sdk/js/script/build.ts
+## 6) Divergence Logging Pattern
 
-# 3. Frontend uses generated client
-import { client } from "@opencode/sdk"
-await client.session.prompt({ sessionID: "x", text: "hello" })
-```
+If you intentionally diverge from OpenCode:
 
-## 5. Event Bus Publishing
+- Keep the divergence scoped to Buddy product needs.
+- Record it in `sync-log.md` as `partial-sync` or `deferred`.
+- State why parity was not applied.
 
-```typescript
-// Backend publishes events
-import { Bus } from "@/bus/index"
+## 7) Route/Loop Contract Pattern
 
-Bus.publish(BusEvent.Type.MessagePartUpdated, {
-  sessionID: "ses_123",
-  part: { id: "part_456", text: "Hello" }
-})
-```
+When changing event/session routes:
 
-## 6. Storage Operations
+1. preserve wire behavior first
+2. preserve Buddy-specific scope constraints second
+3. log intentional divergence in parity log
 
-```typescript
-// Write
-await Storage.write(["message", sessionID, messageID], messageData)
+## 8) Message/Tool Loop Pattern
 
-// Read
-const msg = await Storage.read<Message>(["message", sessionID, messageID])
+For regressions in "stuck send," empty output, or tool-call loops:
 
-// Update with immer
-await Storage.update<Session>(["session", projectID, sessionID], (draft) => {
-  draft.title = "New title"
-})
+1. compare live Buddy and OpenCode loop files
+2. verify stream part lifecycle behavior
+3. verify tool metadata/truncation behavior
 
-// List keys
-const keys = await Storage.list(["message", sessionID])
-```
+## 9) Fork Decision Pattern
 
-## 7. Tool Context Pattern
+Default decision is selective parity, not full fork.
 
-```typescript
-interface ToolContext {
-  agent: string           // Current agent name
-  messageID: string       // Current message ID
-  sessionID: string       // Current session ID
-  abort: AbortSignal      // Cancellation signal
-  callID: string          // Unique call identifier
-  messages: Message[]     // Conversation history
-  
-  // Methods
-  metadata(input): Promise<void>  // Update tool state
-  ask(request): Promise<void>     // Request user permission
-}
-```
+Switch to fork only if all are true:
 
-## 8. React Store Pattern (Zustand equivalent)
-
-```typescript
-// OpenCode uses SolidJS stores, but React equivalent:
-const useEventStore = create((set) => ({
-  messages: {},
-  parts: {},
-  addMessage: (sessionId, msg) =>
-    set((s) => ({ 
-      messages: { ...s.messages, [sessionId]: [...(s.messages[sessionId]||[]), msg] } 
-    })),
-  updatePart: (msgId, partId, delta) =>
-    set((s) => ({ /* update part text */ }))
-}))
-
-// Selective subscriptions (prevents re-renders)
-function MessageItem({ id }) {
-  const message = useEventStore((s) => s.messages[id])
-  return <div>{message.text}</div>
-}
-```
-
-## 9. Monorepo Dev Scripts (Root)
-
-OpenCode runs package dev scripts from root using `bun --cwd ...` instead of a single "dev:all".
-
-```json
-// opencode/package.json
-{
-  "scripts": {
-    "dev": "bun run --cwd packages/opencode --conditions=browser src/index.ts",
-    "dev:web": "bun --cwd packages/app dev",
-    "dev:desktop": "bun --cwd packages/desktop tauri dev"
-  }
-}
-```
-
-## 10. Turborepo Config Field Name
-
-Turborepo v2 uses `tasks` (not `pipeline`). If you copy older configs, `pipeline` will error.
-
-```json
-// turbo.json
-{
-  "$schema": "https://turbo.build/schema.json",
-  "tasks": {
-    "build": { "dependsOn": ["^build"], "outputs": ["dist/**"] },
-    "typecheck": {},
-    "lint": {}
-  }
-}
-```
-
-## 11. shadcn/ui In a Shared Package (Vite + Tailwind v4)
-
-If shadcn components live in a workspace package (e.g. `packages/ui`) and the app (e.g. `packages/web`) consumes them:
-
-```css
-/* packages/ui/src/index.css */
-@import "tailwindcss";
-@import "tw-animate-css";
-@import "shadcn/tailwind.css";
-
-/* CRITICAL (Tailwind v4): ensure utilities used in ui package are generated */
-@source "./**/*.{ts,tsx}";
-```
-
-And the web app should import UI styles:
-
-```css
-/* packages/web/src/index.css */
-@import "@buddy/ui/styles";
-```
-
-### Aliases
-
-shadcn defaults to `@/lib/utils` and `@/components/ui/*` in generated components. In a shared package, you can either:
-
-- Keep shadcn defaults in `packages/ui/components.json` and teach the consumer bundler to resolve `@/` when bundling UI source.
-- Or customize `components.json` aliases to package imports (more portable, but deviates from upstream shadcn defaults).
+1. Product behavior is moving toward near-1:1 OpenCode behavior.
+2. UI/runtime divergence cost is lower than upstream sync cost.
+3. Team is ready for ongoing merge debt across a much larger codebase.

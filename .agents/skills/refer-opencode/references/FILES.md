@@ -1,76 +1,56 @@
-# Key Reference Files
+# Key Reference Files (Stable)
 
-OpenCode codebase is at `../opencode` (sibling to buddy repo).
+This file is intentionally stable.
 
-## Server Routes
+Do not copy frequently changing parity state here.
+Read it from `opencore-pairity/` at runtime.
 
-| File                                             | Purpose                             |
-| ------------------------------------------------ | ----------------------------------- |
-| `packages/opencode/src/server/routes/global.ts`  | SSE endpoint + health check         |
-| `packages/opencode/src/server/routes/session.ts` | Session management, prompt handling |
-| `packages/opencode/src/server/routes/config.ts`  | Configuration endpoints             |
+## OpenCode Location
 
-## Event System
+- Primary: `~/code/opencode`
+- Fallback: `~/Code/opencode`
 
-| File                                     | Purpose                              |
-| ---------------------------------------- | ------------------------------------ |
-| `packages/opencode/src/bus/index.ts`     | Instance Bus (project-scoped events) |
-| `packages/opencode/src/bus/global.ts`    | Global Bus (process-wide events)     |
-| `packages/opencode/src/bus/bus-event.ts` | Event definitions with Zod schemas   |
+## Buddy Parity Contract Location
 
-## Client-Side SSE
+- `opencore-pairity/`
 
-| File                                                  | Purpose                          |
-| ----------------------------------------------------- | -------------------------------- |
-| `packages/app/src/context/global-sync.tsx`            | SSE connection + event buffering |
-| `packages/app/src/context/global-sdk.tsx`             | SDK client setup                 |
-| `packages/app/src/context/global-sync/child-store.ts` | Per-project store creation       |
+Use these as dynamic sources (do not duplicate their contents in this skill):
 
-## Agent Loop
+- `opencore-pairity/pairs.tsv`
+- `opencore-pairity/README.md`
+- `opencore-pairity/sync-checklist.md`
+- `opencore-pairity/sync-log.md`
+- `opencore-pairity/CONTEXT.md`
 
-| File                                          | Purpose                                |
-| --------------------------------------------- | -------------------------------------- |
-| `packages/opencode/src/session/prompt.ts`     | Main agent loop (conversation manager) |
-| `packages/opencode/src/session/processor.ts`  | Processor loop (single AI interaction) |
-| `packages/opencode/src/session/message-v2.ts` | Message/part data structures           |
+## Durable OpenCode Directories
 
-## Storage
+Use these paths to navigate current OpenCode implementation:
 
-| File                                       | Purpose                          |
-| ------------------------------------------ | -------------------------------- |
-| `packages/opencode/src/storage/index.ts`   | Storage abstraction (JSON files) |
-| `packages/opencode/src/session/session.ts` | Session data management          |
+- `packages/opencode/src/tool/`
+- `packages/opencode/src/session/`
+- `packages/opencode/src/permission/`
+- `packages/opencode/src/agent/`
+- `packages/opencode/src/storage/`
+- `packages/opencode/src/bus/`
+- `packages/opencode/src/server/routes/`
+- `packages/opencode/src/config/`
+- `packages/opencode/src/project/`
+- `packages/opencode/src/global/`
 
-## Tauri Desktop
+## Durable Buddy Counterpart Directories
 
-| File                                         | Purpose                           |
-| -------------------------------------------- | --------------------------------- |
-| `packages/desktop/src-tauri/tauri.conf.json` | Tauri config (Vite URL + sidecar) |
-| `packages/desktop/src-tauri/src/server.rs`   | Sidecar spawning + health checks  |
-| `packages/desktop/src-tauri/src/lib.rs`      | Tauri command bindings            |
+- `packages/buddy/src/tool/`
+- `packages/buddy/src/session/`
+- `packages/buddy/src/permission/`
+- `packages/buddy/src/agent/`
+- `packages/buddy/src/storage/`
+- `packages/buddy/src/bus/`
+- `packages/buddy/src/routes/`
+- `packages/buddy/src/config/`
+- `packages/buddy/src/project/`
 
-## SDK Generation
+## Runtime Commands
 
-| File                                       | Purpose                               |
-| ------------------------------------------ | ------------------------------------- |
-| `packages/sdk/js/script/build.ts`          | SDK build script (hey-api/openapi-ts) |
-| `packages/sdk/js/src/v2/gen/client.gen.ts` | Generated HTTP client                 |
-| `packages/sdk/js/src/v2/gen/types.gen.ts`  | Generated TypeScript types            |
+Use parity scripts from `opencore-pairity/scripts/` directly.
 
-## Context & System Prompts
-
-| File                                        | Purpose                       |
-| ------------------------------------------- | ----------------------------- |
-| `packages/opencode/src/session/system.ts`   | Base system prompts           |
-| `packages/opencode/src/session/instruction.ts` | Dynamic instruction file loading |
-| `packages/opencode/src/session/compaction.ts` | Context overflow handling     |
-
-## Tool System
-
-| File                                    | Purpose                  |
-| --------------------------------------- | ------------------------ |
-| `packages/opencode/src/tool/tool.ts`    | Tool interface & context |
-| `packages/opencode/src/tool/read.ts`    | File reading tool        |
-| `packages/opencode/src/tool/write.ts`   | File writing tool        |
-| `packages/opencode/src/tool/edit.ts`    | File editing tool        |
-| `packages/opencode/src/task/tool.ts`    | Subagent task tool       |
+Do not mirror command outputs or mapping snapshots in this file.

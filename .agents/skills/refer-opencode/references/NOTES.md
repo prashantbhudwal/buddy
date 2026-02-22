@@ -1,57 +1,40 @@
-# OpenCode Notes Directory Reference
+# Notes For `refer-opencode`
 
-Detailed exploration notes exist at `../opencode/notes/`. These contain deep-dives into specific subsystems.
+## Current Decision Model
 
-## Buddy-Specific Notes
+Buddy should continue selective OpenCode parity, not full forking, unless product goals converge to near-1:1 OpenCode behavior.
 
-Located at `../opencode/notes/buddy/`:
+Default:
 
-| File                                                    | Content                          |
-| ------------------------------------------------------- | -------------------------------- |
-| `notes/buddy/data-fetching-opencode.md`                 | SSE vs Query, store architecture |
-| `notes/buddy/openapi.md`                                | OpenAPI + Hono setup guide       |
-| `notes/buddy/2025-02-17-client-server-communication.md` | HTTP+SSE pattern                 |
-| `notes/buddy/2025-02-17-tauri-decision.md`              | Tauri sidecar architecture       |
-| `notes/buddy/2025-02-17-api-choice.md`                  | OpenAPI vs tRPC decision         |
+- parity-core => track and sync via `opencore-pairity/`
+- buddy-product => intentional divergence, documented
 
-## Core Architecture Notes
+## Where Dynamic Context Lives
 
-| File                                     | Content                          |
-| ---------------------------------------- | -------------------------------- |
-| `notes/event-bus-architecture.md`        | Three-tier event bus             |
-| `notes/event-buffering.md`               | Client-side coalescing           |
-| `notes/agent-loop-flow.md`               | Complete agent loop walkthrough  |
-| `notes/agent-loop-top-down.md`           | High-level agent loop overview   |
-| `notes/agent-loop-events.md`             | Events emitted by agent loop     |
-| `notes/agent-loop-detailed-states.md`    | State machine details            |
-| `notes/agent-loop-example.md`            | Example walkthrough              |
+- `opencore-pairity/CONTEXT.md` for intent/risk context
+- `opencore-pairity/pairs.tsv` for current mappings
+- `opencore-pairity/sync-checklist.md` for current process
+- `opencore-pairity/sync-log.md` for recent decisions and outcomes
 
-## Data & Storage Notes
+Do not duplicate those changing details in this file.
 
-| File                                     | Content                          |
-| ---------------------------------------- | -------------------------------- |
-| `notes/message-storage-structure.md`     | Storage layout + data types      |
-| `notes/message-parts-summary.md`         | Part types overview              |
-| `notes/context-management.md`            | System prompts, compaction       |
-| `notes/context-system.md`                | Context loading system           |
+## When To Use OpenCode Notes Directory
 
-## UI Notes
+OpenCode notes (`../opencode/notes/**`) are useful for orientation, but must be validated against live code.
 
-| File                                     | Content                          |
-| ---------------------------------------- | -------------------------------- |
-| `notes/ui-orchestration.md`              | Rendering pipeline               |
-| `notes/ui-rendering-logic.md`            | Component structure              |
+Read notes only when needed for:
 
-## Monorepo/UI Gotchas (Buddy)
+- architecture background (`notes/agent-loop-*`, `notes/event-*`)
+- context/storage background (`notes/context-*`, `notes/message-*`)
+- prior Buddy-specific architecture decisions (`notes/buddy/*`)
 
-- Turborepo v2 expects `tasks` in `turbo.json` (not `pipeline`).
-- OpenCode uses root scripts with `bun --cwd packages/<pkg> ...` rather than a single combined dev command.
-- Tailwind v4 + workspace UI packages: add `@source "./**/*.{ts,tsx}";` to the UI package CSS to ensure shadcn component utility classes get generated.
+Do not treat notes as implementation source of truth.
 
-## When to Read These
+## Practical Rule
 
-- **data-fetching-opencode.md** - When deciding between SSE vs polling vs TanStack Query
-- **event-bus-architecture.md** - When setting up the three-tier event system
-- **agent-loop-flow.md** - When implementing the main agent conversation loop
-- **message-storage-structure.md** - When designing the storage schema
-- **openapi.md** - When setting up OpenAPI routes with Hono + Zod
+Before recommending architecture:
+
+1. read Buddy live code
+2. read OpenCode live counterpart
+3. run parity workflow from `opencore-pairity/sync-checklist.md` when task touches parity-core
+4. then propose porting/fork/divergence decision
