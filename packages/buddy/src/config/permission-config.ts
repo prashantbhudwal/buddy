@@ -47,13 +47,55 @@ export namespace PermissionConfig {
       .join("\n")
   }
 
+  function stripTrailingCommas(content: string) {
+    let result = ""
+    let inString = false
+    let escaped = false
+
+    for (let i = 0; i < content.length; i += 1) {
+      const char = content[i]
+
+      if (inString) {
+        result += char
+        if (escaped) {
+          escaped = false
+        } else if (char === "\\") {
+          escaped = true
+        } else if (char === "\"") {
+          inString = false
+        }
+        continue
+      }
+
+      if (char === "\"") {
+        inString = true
+        result += char
+        continue
+      }
+
+      if (char === ",") {
+        let j = i + 1
+        while (j < content.length && /\s/.test(content[j])) j += 1
+        const next = content[j]
+        if (next === "}" || next === "]") {
+          continue
+        }
+      }
+
+      result += char
+    }
+
+    return result
+  }
+
   function readConfigFile(filePath: string) {
     if (!fs.existsSync(filePath)) {
       return undefined
     }
 
     const content = fs.readFileSync(filePath, "utf8")
-    const parsed = JSON.parse(stripJsonComments(content)) as unknown
+    const json = stripTrailingCommas(stripJsonComments(content))
+    const parsed = JSON.parse(json) as unknown
     return ConfigFile.parse(parsed)
   }
 
