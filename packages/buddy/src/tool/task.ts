@@ -4,6 +4,7 @@ import { PermissionNext } from "../permission/next.js"
 import { errorSession, logSession } from "../session/debug.js"
 import { SessionPrompt } from "../session/prompt.js"
 import { SessionStore } from "../session/session-store.js"
+import { resolveRuntimeModel } from "../session/model-resolver.js"
 import { Tool } from "./tool.js"
 import DESCRIPTION from "./task.txt"
 
@@ -132,7 +133,7 @@ function resolveModel(sessionID: string) {
   const history = SessionStore.listMessages(sessionID)
   const lastUser = [...history].reverse().find((message) => message.info.role === "user")
   const model = lastUser?.info.role === "user" ? lastUser.info.model : undefined
-  return model ?? { providerID: "anthropic", modelID: "k2p5" }
+  return model
 }
 
 export const TaskTool = Tool.define("task", async (initCtx) => {
@@ -211,7 +212,10 @@ export const TaskTool = Tool.define("task", async (initCtx) => {
         subagent: agent.name,
       })
 
-      const model = resolveModel(ctx.sessionID)
+      const model = await resolveRuntimeModel({
+        requestModel: resolveModel(ctx.sessionID),
+        agent,
+      })
 
       await ctx.metadata({
         title: params.description,

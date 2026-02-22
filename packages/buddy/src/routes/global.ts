@@ -1,9 +1,10 @@
 import { Hono } from "hono"
-import { describeRoute, resolver } from "hono-openapi"
+import { describeRoute, resolver, validator } from "hono-openapi"
 import { streamSSE } from "hono/streaming"
 import z from "zod"
 import { BusEvent } from "../bus/bus-event.js"
 import { GlobalBus } from "../bus/global.js"
+import { Config, InvalidError, JsonError } from "../config/config.js"
 import "../permission/next.js"
 import { isAllowedDirectory, resolveDirectory } from "../project/directory.js"
 import "../session/message-v2/events.js"
@@ -15,6 +16,10 @@ const SsePayload = z.object({
   payload: BusEvent.payloads(),
 })
 
+const ErrorResponse = z.object({
+  error: z.string(),
+})
+
 export const GlobalRoutes = () =>
   new Hono()
     .get(
@@ -22,7 +27,7 @@ export const GlobalRoutes = () =>
       describeRoute({
         summary: "Health check",
         description: "Check if the server is healthy.",
-        operationId: "health.check",
+        operationId: "global.health",
         responses: {
           200: {
             description: "Server is healthy",
@@ -65,9 +70,7 @@ export const GlobalRoutes = () =>
       }),
       async (c) => {
         const rawScope =
-          c.req.query("directory") ??
-          c.req.header("x-buddy-directory") ??
-          c.req.header("x-opencode-directory")
+          c.req.query("directory") ?? c.req.header("x-buddy-directory") ?? c.req.header("x-opencode-directory")
         const scopedDirectory = rawScope ? resolveDirectory(rawScope) : undefined
 
         if (scopedDirectory && !isAllowedDirectory(scopedDirectory)) {
@@ -157,5 +160,65 @@ export const GlobalRoutes = () =>
             })
           })
         })
+      },
+    )
+    .get(
+      "/global/config",
+      describeRoute({
+        summary: "Get global config",
+        description: "Retrieve global Buddy config.",
+        operationId: "global.config.get",
+        responses: {
+          200: {
+            description: "Global config",
+            content: {
+              "application/json": {
+                schema: resolver(Config.Info),
+              },
+            },
+          },
+        },
+      }),
+      async (c) => {
+        return c.json(await Config.getGlobal())
+      },
+    )
+    .patch(
+      "/global/config",
+      describeRoute({
+        summary: "Patch global config",
+        description: "Update global Buddy config and dispose active instances.",
+        operationId: "global.config.update",
+        responses: {
+          200: {
+            description: "Updated global config",
+            content: {
+              "application/json": {
+                schema: resolver(Config.Info),
+              },
+            },
+          },
+          400: {
+            description: "Invalid config",
+            content: {
+              "application/json": {
+                schema: resolver(ErrorResponse),
+              },
+            },
+          },
+        },
+      }),
+      validator("json", Config.Info),
+      async (c) => {
+        try {
+          const body = c.req.valid("json")
+          const next = await Config.updateGlobal(body)
+          return c.json(next)
+        } catch (error) {
+          if (error instanceof JsonError || error instanceof InvalidError) {
+            return c.json({ error: error.message }, 400)
+          }
+          throw error
+        }
       },
     )

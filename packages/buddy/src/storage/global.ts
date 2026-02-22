@@ -35,7 +35,7 @@ const preferred = buildPaths({
       path.join(withFallback(xdgCache, path.join(os.homedir(), ".cache")), APP_NAME),
   ),
   config: path.resolve(
-    process.env.BUDDY_CONFIG_DIR ??
+    process.env.BUDDY_GLOBAL_CONFIG_DIR ??
       path.join(withFallback(xdgConfig, path.join(os.homedir(), ".config")), APP_NAME),
   ),
   state: path.resolve(

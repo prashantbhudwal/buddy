@@ -2,6 +2,7 @@ import { Hono } from 'hono'
 import { openAPIRouteHandler } from 'hono-openapi'
 import { cors } from 'hono/cors'
 import { logger } from 'hono/logger'
+import { ConfigRoutes } from './routes/config.js'
 import { CurriculumRoutes } from './routes/curriculum.js'
 import { GlobalRoutes } from './routes/global.js'
 import { PermissionRoutes } from './routes/permission.js'
@@ -39,6 +40,7 @@ api.use(async (c, next) => {
 api.route('/session', SessionRoutes())
 api.route('/permission', PermissionRoutes())
 api.route('/curriculum', CurriculumRoutes())
+api.route('/config', ConfigRoutes())
 
 app
   .use(logger())

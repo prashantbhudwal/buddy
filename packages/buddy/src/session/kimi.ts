@@ -20,6 +20,6 @@ function provider() {
   return kimiProvider
 }
 
-export function kimiModel(): any {
-  return provider()("k2p5")
+export function kimiModel(modelID = "k2p5"): any {
+  return provider()(modelID)
 }

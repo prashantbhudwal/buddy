@@ -3,7 +3,7 @@ import { ulid } from "ulid"
 import z from "zod"
 import { BusEvent } from "../bus/bus-event.js"
 import { Bus } from "../bus/index.js"
-import { PermissionConfig } from "../config/permission-config.js"
+import { Config } from "../config/config.js"
 import { Instance } from "../project/instance.js"
 import { PermissionTable } from "../session/session.sql.js"
 import { Database, eq } from "../storage/db.js"
@@ -154,7 +154,9 @@ export namespace PermissionNext {
     })
   }
 
-  export function fromConfig(permission: PermissionConfig.Shape) {
+  export function fromConfig(permission: Config.Permission | undefined) {
+    if (!permission) return []
+
     const ruleset: Ruleset = []
     for (const [permissionKey, value] of Object.entries(permission)) {
       if (typeof value === "string") {

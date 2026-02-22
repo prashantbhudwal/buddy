@@ -1,11 +1,23 @@
 import path from "node:path"
+import { mergeDeep, sortBy, values } from "remeda"
 import z from "zod"
-import { PermissionConfig } from "../config/permission-config.js"
+import { Config } from "../config/config.js"
 import { PermissionNext } from "../permission/next.js"
 import { Instance } from "../project/instance.js"
 import { Global } from "../storage/global.js"
 import { Truncate } from "../tool/truncation.js"
 import CURRICULUM_BUILDER_PROMPT from "./prompts/curriculum-builder.txt"
+
+function parseModelID(model: string) {
+  const index = model.indexOf("/")
+  if (index <= 0 || index >= model.length - 1) {
+    throw new Error(`Invalid model format: ${model}. Expected provider/model.`)
+  }
+  return {
+    providerID: model.slice(0, index),
+    modelID: model.slice(index + 1),
+  }
+}
 
 export namespace Agent {
   export const Info = z
@@ -27,14 +39,16 @@ export namespace Agent {
         .optional(),
       variant: z.string().optional(),
       prompt: z.string().optional(),
-      options: z.record(z.string(), z.any()).default({}),
+      options: z.record(z.string(), z.any()),
       steps: z.number().int().positive().optional(),
     })
 
   export type Info = z.infer<typeof Info>
 
-  function defaults() {
-    return PermissionNext.fromConfig({
+  const state = Instance.state("agent.catalog", async () => {
+    const cfg = await Config.get()
+
+    const defaults = PermissionNext.fromConfig({
       "*": "allow",
       doom_loop: "ask",
       question: "deny",
@@ -52,26 +66,57 @@ export namespace Agent {
         "*.env.example": "allow",
       },
     })
-  }
 
-  const state = Instance.state("agent.catalog", () => {
-    const userRules = PermissionNext.fromConfig(PermissionConfig.load())
-    const base = defaults()
+    const user = PermissionNext.fromConfig(cfg.permission)
 
-    const agents: Record<string, Info> = {
+    const result: Record<string, Info> = {
       build: {
         name: "build",
         description: "The default Buddy agent. Executes tools based on configured permissions.",
         permission: PermissionNext.merge(
-          base,
+          defaults,
           PermissionNext.fromConfig({
             question: "allow",
+            plan_enter: "allow",
           }),
-          userRules,
+          user,
         ),
         mode: "primary",
         native: true,
+        options: {},
         steps: 8,
+      },
+      plan: {
+        name: "plan",
+        description: "Plan mode. Disallows edit tools.",
+        permission: PermissionNext.merge(
+          defaults,
+          PermissionNext.fromConfig({
+            question: "allow",
+            plan_exit: "allow",
+            edit: {
+              "*": "deny",
+            },
+          }),
+          user,
+        ),
+        mode: "primary",
+        native: true,
+        options: {},
+      },
+      general: {
+        name: "general",
+        description: "General-purpose subagent for research and multi-step execution.",
+        permission: PermissionNext.merge(
+          defaults,
+          PermissionNext.fromConfig({
+            todoread: "deny",
+            todowrite: "deny",
+          }),
+          user,
+        ),
+        mode: "subagent",
+        native: true,
         options: {},
       },
       "curriculum-builder": {
@@ -79,7 +124,7 @@ export namespace Agent {
         description: "Builds and updates project curriculum markdown with actionable checklists.",
         prompt: CURRICULUM_BUILDER_PROMPT,
         permission: PermissionNext.merge(
-          base,
+          defaults,
           PermissionNext.fromConfig({
             "*": "deny",
             read: "allow",
@@ -90,39 +135,59 @@ export namespace Agent {
             curriculum_update: "allow",
             task: "deny",
           }),
-          userRules,
+          user,
         ),
         mode: "subagent",
         native: true,
+        options: {},
         steps: 8,
-        options: {},
-      },
-      general: {
-        name: "general",
-        description: "General-purpose subagent for research and multi-step execution.",
-        permission: PermissionNext.merge(
-          base,
-          PermissionNext.fromConfig({
-            todoread: "deny",
-            todowrite: "deny",
-            curriculum_read: "deny",
-            curriculum_update: "deny",
-          }),
-          userRules,
-        ),
-        mode: "subagent",
-        native: true,
-        options: {},
       },
     }
 
-    for (const [name, agent] of Object.entries(agents)) {
-      const explicitDenyTruncate = agent.permission.some(
-        (rule) => rule.permission === "external_directory" && rule.action === "deny" && rule.pattern === Truncate.GLOB,
-      )
-      if (explicitDenyTruncate) continue
-      agents[name].permission = PermissionNext.merge(
-        agents[name].permission,
+    for (const [key, value] of Object.entries(cfg.agent ?? {})) {
+      if (value.disable) {
+        delete result[key]
+        continue
+      }
+
+      let item = result[key]
+      if (!item) {
+        item = result[key] = {
+          name: key,
+          mode: "all",
+          permission: PermissionNext.merge(defaults, user),
+          options: {},
+          native: false,
+        }
+      }
+
+      if (value.model) item.model = parseModelID(value.model)
+      item.variant = value.variant ?? item.variant
+      item.prompt = value.prompt ?? item.prompt
+      item.description = value.description ?? item.description
+      item.temperature = value.temperature ?? item.temperature
+      item.topP = value.top_p ?? item.topP
+      item.mode = value.mode ?? item.mode
+      item.color = typeof value.color === "string" ? value.color : item.color
+      item.hidden = value.hidden ?? item.hidden
+      item.name = value.name ?? item.name
+      item.steps = value.steps ?? item.steps
+      item.options = mergeDeep(item.options, value.options ?? {})
+      item.permission = PermissionNext.merge(item.permission, PermissionNext.fromConfig(value.permission))
+    }
+
+    for (const name in result) {
+      const agent = result[name]
+      const explicitDeny = agent.permission.some((rule) => {
+        if (rule.permission !== "external_directory") return false
+        if (rule.action !== "deny") return false
+        return rule.pattern === Truncate.GLOB
+      })
+
+      if (explicitDeny) continue
+
+      result[name].permission = PermissionNext.merge(
+        result[name].permission,
         PermissionNext.fromConfig({
           external_directory: {
             [Truncate.GLOB]: "allow",
@@ -131,30 +196,36 @@ export namespace Agent {
       )
     }
 
-    return agents
+    return result
   })
 
   export async function get(name: string) {
-    return state()[name]
+    return state().then((catalog) => catalog[name])
   }
 
   export async function list() {
-    return Object.values(state()).sort((left, right) => {
-      const leftPriority = left.name === "build" ? 0 : 1
-      const rightPriority = right.name === "build" ? 0 : 1
-      return leftPriority - rightPriority
-    })
+    const cfg = await Config.get()
+    return sortBy(values(await state()), [
+      (entry) => (cfg.default_agent ? entry.name === cfg.default_agent : entry.name === "build"),
+      "desc",
+    ])
   }
 
   export async function defaultAgent() {
-    const agents = state()
-    if (agents.build && agents.build.mode !== "subagent" && agents.build.hidden !== true) {
-      return agents.build.name
+    const cfg = await Config.get()
+    const agents = await state()
+
+    if (cfg.default_agent) {
+      const agent = agents[cfg.default_agent]
+      if (!agent) throw new Error(`default agent \"${cfg.default_agent}\" not found`)
+      if (agent.mode === "subagent") throw new Error(`default agent \"${cfg.default_agent}\" is a subagent`)
+      if (agent.hidden === true) throw new Error(`default agent \"${cfg.default_agent}\" is hidden`)
+      return agent.name
     }
 
     const fallback = Object.values(agents).find((agent) => agent.mode !== "subagent" && agent.hidden !== true)
     if (!fallback) {
-      throw new Error("No primary agent found")
+      throw new Error("no primary visible agent found")
     }
 
     return fallback.name
