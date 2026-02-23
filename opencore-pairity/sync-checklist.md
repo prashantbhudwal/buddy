@@ -8,6 +8,7 @@
 2. Run drift report:
    - `./opencore-pairity/scripts/diff-pairs.sh --changed-only`
    - `./opencore-pairity/scripts/screen-coverage.sh`
+   - `./opencore-pairity/scripts/test-coverage.sh`
 3. For each changed pair:
    - inspect OpenCode commits:
      `./opencore-pairity/scripts/upstream-history.sh --since <last_synced_sha>`
@@ -16,6 +17,10 @@
 4. Validate Buddy after porting:
    - `bun run typecheck -- --filter=@buddy/backend`
    - `bun run test -- --filter=@buddy/backend`
+   - `bun run --cwd packages/buddy test:parity`
+   - `bun run --cwd packages/web test:parity`
+   - `bun run test:parity`
+   - `bun run check:parity` (expected to fail when pair drift exists)
 5. Record what was synced:
    - add entry in `opencore-pairity/sync-log.md` with touched pair rows and upstream SHAs
    - update PR description with a link to the new log entry
@@ -40,6 +45,7 @@ Use this when changing only parity docs/mappings (`README.md`, `pairs.tsv`, `syn
 1. Run:
    - `./opencore-pairity/scripts/diff-pairs.sh --changed-only`
    - `./opencore-pairity/scripts/screen-coverage.sh`
+   - `./opencore-pairity/scripts/test-coverage.sh`
    - `./opencore-pairity/scripts/upstream-history.sh --max-count 5`
 2. Add `sync-log.md` entry with:
    - reason for contract/mapping change

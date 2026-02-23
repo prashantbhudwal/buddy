@@ -157,3 +157,34 @@ Append-only log for parity runs and parity contract changes.
   - synced
 - Next step:
   - evaluate parity gaps for `multiedit`/`todo`/`question` once Buddy product scope requires them.
+
+## 2026-02-23 - Add backend+web testing parity harness and blocking gates
+
+- Type: parity-sync
+- Buddy refs: working tree
+- OpenCode refs:
+  - `packages/opencode/test/**` parity targets listed in `opencore-pairity/test-pairs.tsv`
+  - `packages/app/src/**/*.test.ts` parity targets listed in `opencore-pairity/test-pairs.tsv`
+- Pairs touched:
+  - backend parity suite: `packages/buddy/test/parity/**` -> `packages/opencode/test/**`
+  - web parity suite: `packages/web/test/parity/**` -> `packages/app/src/**/*.test.ts`
+  - parity contract: `opencore-pairity/test-pairs.tsv`
+  - parity validation script: `opencore-pairity/scripts/test-coverage.sh`
+- Summary:
+  - Fixed curriculum default-read baseline regression so backend test baseline is green.
+  - Added backend test preload isolation (`bunfig.toml`, `test/preload.ts`) and reusable tmp fixture.
+  - Added web Happy DOM preload and parity test files for layout/prompt/store/runtime/persistence helpers.
+  - Added parity mapping contract `test-pairs.tsv` and strict coverage checker `test-coverage.sh`.
+  - Added blocking parity scripts (`test:parity`, `check:parity`) at root and package level.
+- Validation:
+  - backend tests: `bun run --cwd packages/buddy test` -> pass (67/67)
+  - web tests: `bun run --cwd packages/web test` -> pass (51/51)
+  - parity tests: `bun run test:parity` -> pass (backend 42/42, web 42/42)
+  - test coverage: `./opencore-pairity/scripts/test-coverage.sh` -> pass (`rows=77 ported=41 na=36 deferred=0`)
+  - coverage screen: `./opencore-pairity/scripts/screen-coverage.sh` -> pass (`unmapped_exact=0`, `unmapped_rename=0`)
+  - drift report: `./opencore-pairity/scripts/diff-pairs.sh --changed-only` -> `diff=45 missing=0` (expected non-zero until further core syncs)
+  - full gate: `bun run check:parity` -> fail by design on current pair drift (diff stage)
+- Decision:
+  - synced
+- Next step:
+  - continue parity-core file syncing to reduce `diff-pairs` drift and move `check:parity` toward green.

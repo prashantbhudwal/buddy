@@ -8,6 +8,8 @@ without becoming a full fork.
 Only core agent/runtime files that should stay close to OpenCode are tracked.
 See `pairs.tsv` for the source of truth.
 
+Test parity coverage is tracked separately in `test-pairs.tsv`.
+
 ## Will This Still Work As Buddy Grows?
 
 Yes, if new OpenCode-inspired work follows this rule:
@@ -69,6 +71,24 @@ If one side changes, the other side must be updated in the same task/PR.
 ./opencore-pairity/scripts/screen-coverage.sh
 ```
 
+6. Run parity test coverage contract checks:
+
+```bash
+./opencore-pairity/scripts/test-coverage.sh
+```
+
+7. Run the Buddy parity test gate:
+
+```bash
+bun run test:parity
+```
+
+8. Run full parity gate (drift + coverage + tests):
+
+```bash
+bun run check:parity
+```
+
 ## Path Resolution
 
 Scripts resolve OpenCode from:
@@ -100,3 +120,4 @@ A parity task is complete only when all are true:
 3. `diff-pairs.sh --changed-only` output is reviewed and attached to task notes.
 4. `screen-coverage.sh` output is reviewed and attached to task notes.
 5. Backend validation commands are run (or failures documented).
+6. `test-pairs.tsv` is updated and `test-coverage.sh` passes.
