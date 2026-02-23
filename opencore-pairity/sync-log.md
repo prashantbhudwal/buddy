@@ -87,3 +87,73 @@ Append-only log for parity runs and parity contract changes.
   - synced
 - Next step:
   - keep new parity-core files blocked on adding a `pairs.tsv` row and green `screen-coverage.sh`.
+
+## 2026-02-22 - Add glob/grep/bash parity tools and close prompt mismatch
+
+- Type: parity-sync
+- Buddy refs: working tree
+- OpenCode refs:
+  - `packages/opencode/src/tool/glob.ts`
+  - `packages/opencode/src/tool/grep.ts`
+  - `packages/opencode/src/tool/bash.ts`
+  - latest history sampled via `./opencore-pairity/scripts/upstream-history.sh --max-count 5`
+- Pairs touched:
+  - `packages/buddy/src/tool/glob.ts` -> `packages/opencode/src/tool/glob.ts`
+  - `packages/buddy/src/tool/grep.ts` -> `packages/opencode/src/tool/grep.ts`
+  - `packages/buddy/src/tool/bash.ts` -> `packages/opencode/src/tool/bash.ts`
+  - `packages/buddy/src/tool/registry.ts` -> `packages/opencode/src/tool/registry.ts`
+  - `packages/buddy/src/session/prompts/learning-companion.txt` (Buddy-side prompt/tool contract alignment)
+- Summary:
+  - Added missing parity-core tools (`glob`, `grep`, `bash`) to close runtime/prompt mismatch.
+  - Wired tools into `ToolRegistry` and added tool descriptions under `packages/buddy/src/tool/*.txt`.
+  - Updated prompt policy to prefer new specialized search tools before bash.
+  - Added backend tests for registry presence and execution behavior (`packages/buddy/test/tooling-parity.test.ts`).
+  - Expanded `pairs.tsv` with new parity mappings for `glob`, `grep`, and `bash`.
+- Validation:
+  - diff-pairs: `./opencore-pairity/scripts/diff-pairs.sh --changed-only` -> `total=43 match=1 diff=42 missing=0` (exit 1 by design)
+  - coverage: `./opencore-pairity/scripts/screen-coverage.sh` -> `Exact summary total=35 mapped=35 unmapped=0`, `Rename summary total=8 unmapped=0`
+  - upstream-history: `./opencore-pairity/scripts/upstream-history.sh --max-count 5` -> success
+  - backend checks:
+    - `bun run --cwd packages/buddy typecheck` -> pass
+    - `bun run --cwd packages/buddy test` -> pass
+    - `bun run typecheck` -> pass
+    - `bun test` -> pass
+- Decision:
+  - synced
+- Next step:
+  - evaluate next parity-core additions (`edit`/`apply_patch`) or keep prompt/tool contract scoped to currently shipped tools.
+
+## 2026-02-22 - Add edit/apply_patch core tooling parity
+
+- Type: parity-sync
+- Buddy refs: working tree
+- OpenCode refs:
+  - `packages/opencode/src/tool/edit.ts` (recent upstream: `02a949506`, `270b807cd`, `624dd94b5`)
+  - `packages/opencode/src/tool/apply_patch.ts` (recent upstream: `021d9d105`, `f4cf3f497`, `74bd52e8a`)
+  - `packages/opencode/src/patch/index.ts` (recent upstream: `2dcca4755`, `b7ad6bd83`, `41ce56494`)
+- Pairs touched:
+  - `packages/buddy/src/tool/edit.ts` -> `packages/opencode/src/tool/edit.ts`
+  - `packages/buddy/src/tool/apply_patch.ts` -> `packages/opencode/src/tool/apply_patch.ts`
+  - `packages/buddy/src/patch/index.ts` -> `packages/opencode/src/patch/index.ts`
+  - `packages/buddy/src/tool/registry.ts` -> `packages/opencode/src/tool/registry.ts`
+  - `packages/buddy/src/session/prompts/learning-companion.txt` (Buddy prompt/tool contract alignment)
+- Summary:
+  - Added Buddy-native parity ports for `edit` and `apply_patch` with OpenCode-compatible input contracts.
+  - Ported a minimal patch parser/chunk applier in `src/patch/index.ts` to support patch envelope operations.
+  - Registered tools in `ToolRegistry`, added tool docs, and extended backend parity tests.
+  - Updated parity mappings so coverage scripts track the newly ported core files.
+- Validation:
+  - diff-pairs: `./opencore-pairity/scripts/diff-pairs.sh --changed-only` -> `total=46 match=1 diff=45 missing=0` (exit 1 by design)
+  - coverage: `./opencore-pairity/scripts/screen-coverage.sh` -> `Exact summary total=38 mapped=38 unmapped=0`, `Rename summary total=8 unmapped=0`
+  - upstream-history: `./opencore-pairity/scripts/upstream-history.sh --max-count 5` -> success
+  - backend checks:
+    - `bun run --cwd packages/buddy typecheck` -> pass
+    - `bun run --cwd packages/buddy test` -> pass
+  - workspace checks:
+    - `bun run typecheck` -> pass
+    - `bun test` -> pass
+    - `bun run build` -> pass
+- Decision:
+  - synced
+- Next step:
+  - evaluate parity gaps for `multiedit`/`todo`/`question` once Buddy product scope requires them.

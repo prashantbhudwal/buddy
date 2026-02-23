@@ -16,6 +16,12 @@ packages/buddy/src/tool/read.ts	packages/opencode/src/tool/read.ts	P1	core read 
 packages/buddy/src/tool/write.ts	packages/opencode/src/tool/write.ts	P1	core write semantics and permission behavior
 packages/buddy/src/tool/webfetch.ts	packages/opencode/src/tool/webfetch.ts	P1	web ingest behavior used by research flows
 packages/buddy/src/tool/list.ts	packages/opencode/src/tool/ls.ts	P1	listing semantics (OpenCode uses ls.ts)
+packages/buddy/src/tool/glob.ts	packages/opencode/src/tool/glob.ts	P1	file pattern discovery semantics
+packages/buddy/src/tool/grep.ts	packages/opencode/src/tool/grep.ts	P1	content search semantics
+packages/buddy/src/tool/bash.ts	packages/opencode/src/tool/bash.ts	P1	shell execution semantics and permission asks
+packages/buddy/src/tool/edit.ts	packages/opencode/src/tool/edit.ts	P1	exact replacement editing semantics and ambiguity handling
+packages/buddy/src/tool/apply_patch.ts	packages/opencode/src/tool/apply_patch.ts	P1	patch-envelope based multi-file edit semantics
+packages/buddy/src/patch/index.ts	packages/opencode/src/patch/index.ts	P1	patch parsing/chunk application semantics for apply_patch
 packages/buddy/src/tool/external-directory.ts	packages/opencode/src/tool/external-directory.ts	P1	external directory enforcement and permission asks
 packages/buddy/src/tool/invalid.ts	packages/opencode/src/tool/invalid.ts	P3	fallback tool behavior and unknown tool handling
 packages/buddy/src/bus/index.ts	packages/opencode/src/bus/index.ts	P1	event routing semantics and tenant scoping
