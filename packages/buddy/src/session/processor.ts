@@ -109,14 +109,26 @@ function outputToString(output: unknown) {
   }
 }
 
+function isObjectRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value)
+}
+
+function asObjectRecord(value: unknown, fallback: Record<string, unknown> = {}): Record<string, unknown> {
+  return isObjectRecord(value) ? value : fallback
+}
+
+function asOptionalObjectRecord(value: unknown): Record<string, unknown> | undefined {
+  return isObjectRecord(value) ? value : undefined
+}
+
 function parseToolResult(output: unknown) {
-  if (typeof output === "object" && output !== null) {
-    const value = output as Record<string, unknown>
+  if (isObjectRecord(output)) {
+    const value = output
     const direct = value.output
     return {
       output: outputToString(direct === undefined ? output : direct),
-      metadata: value.metadata as Record<string, any> | undefined,
-      title: value.title as string | undefined,
+      metadata: asOptionalObjectRecord(value.metadata),
+      title: typeof value.title === "string" ? value.title : undefined,
     }
   }
 
@@ -395,12 +407,12 @@ async function processStep(input: {
             tool: value.toolName,
             state: {
               status: "running",
-              input: value.input as Record<string, any>,
+              input: asObjectRecord(value.input),
               time: {
                 start: Date.now(),
               },
             },
-            metadata: value.providerMetadata as Record<string, any> | undefined,
+            metadata: asOptionalObjectRecord(value.providerMetadata),
           }
           toolParts.set(value.toolCallId, running)
           SessionStore.updatePart(running)
@@ -426,7 +438,7 @@ async function processStep(input: {
             ...existing,
             state: {
               status: "completed",
-              input: value.input ?? existing.state.input,
+              input: asObjectRecord(value.input, existing.state.input),
               output: parsedOutput.output,
               metadata: parsedOutput.metadata,
               title: parsedOutput.title,
@@ -462,7 +474,7 @@ async function processStep(input: {
             ...existing,
             state: {
               status: "error",
-              input: value.input ?? existing.state.input,
+              input: asObjectRecord(value.input, existing.state.input),
               error: String(value.error),
               time: {
                 start: existing.state.time.start,

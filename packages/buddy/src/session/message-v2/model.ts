@@ -1,4 +1,4 @@
-import { convertToModelMessages, type ModelMessage, type UIMessage } from "ai"
+import { convertToModelMessages, type JSONValue, type ModelMessage, type UIMessage } from "ai"
 import type { WithParts as MessageWithParts } from "./messages.js"
 
 function toToolModelOutput(output: unknown) {
@@ -22,9 +22,43 @@ function toToolModelOutput(output: unknown) {
   }
 }
 
+function isObjectRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value)
+}
+
+function isJSONValue(value: unknown): value is JSONValue {
+  if (value === null) return true
+  if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") return true
+  if (Array.isArray(value)) return value.every(isJSONValue)
+  if (!isObjectRecord(value)) return false
+  return Object.values(value).every(isJSONValue)
+}
+
+function asProviderMetadata(metadata: unknown): Record<string, Record<string, JSONValue>> | undefined {
+  if (!isObjectRecord(metadata)) return undefined
+
+  const providerMetadata: Record<string, Record<string, JSONValue>> = {}
+  for (const [provider, providerData] of Object.entries(metadata)) {
+    if (!isObjectRecord(providerData)) continue
+
+    const cleanedProviderData: Record<string, JSONValue> = {}
+    for (const [key, value] of Object.entries(providerData)) {
+      if (isJSONValue(value)) {
+        cleanedProviderData[key] = value
+      }
+    }
+
+    if (Object.keys(cleanedProviderData).length > 0) {
+      providerMetadata[provider] = cleanedProviderData
+    }
+  }
+
+  return Object.keys(providerMetadata).length > 0 ? providerMetadata : undefined
+}
+
 function asToolInput(input: unknown) {
-  if (input && typeof input === "object") {
-    return input as Record<string, unknown>
+  if (isObjectRecord(input)) {
+    return input
   }
   return {}
 }
@@ -104,7 +138,7 @@ export function toModelMessages(history: MessageWithParts[]): ModelMessage[] {
         assistantMessage.parts.push({
           type: "text",
           text: part.text,
-          providerMetadata: part.metadata,
+          providerMetadata: asProviderMetadata(part.metadata),
         })
         continue
       }
@@ -113,7 +147,7 @@ export function toModelMessages(history: MessageWithParts[]): ModelMessage[] {
         assistantMessage.parts.push({
           type: "reasoning",
           text: part.text,
-          providerMetadata: part.metadata,
+          providerMetadata: asProviderMetadata(part.metadata),
         })
         continue
       }
@@ -139,7 +173,7 @@ export function toModelMessages(history: MessageWithParts[]): ModelMessage[] {
           toolCallId: part.callID,
           input: asToolInput(part.state.input),
           output: outputText,
-          callProviderMetadata: part.metadata,
+          callProviderMetadata: asProviderMetadata(part.metadata),
         })
         continue
       }
@@ -151,7 +185,7 @@ export function toModelMessages(history: MessageWithParts[]): ModelMessage[] {
           toolCallId: part.callID,
           input: asToolInput(part.state.input),
           errorText: part.state.error,
-          callProviderMetadata: part.metadata,
+          callProviderMetadata: asProviderMetadata(part.metadata),
         })
         continue
       }
@@ -163,7 +197,7 @@ export function toModelMessages(history: MessageWithParts[]): ModelMessage[] {
           toolCallId: part.callID,
           input: asToolInput(part.state.input),
           errorText: "[Tool execution was interrupted]",
-          callProviderMetadata: part.metadata,
+          callProviderMetadata: asProviderMetadata(part.metadata),
         })
       }
     }

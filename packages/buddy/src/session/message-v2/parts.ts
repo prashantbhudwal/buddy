@@ -17,25 +17,25 @@ export const TextPart = PartBase.extend({
   synthetic: z.boolean().optional(),
   ignored: z.boolean().optional(),
   time: TimeRange.optional(),
-  metadata: z.record(z.any()).optional(),
+  metadata: z.record(z.string(), z.any()).optional(),
 })
 
 export const ReasoningPart = PartBase.extend({
   type: z.literal("reasoning"),
   text: z.string(),
   time: TimeRange,
-  metadata: z.record(z.any()).optional(),
+  metadata: z.record(z.string(), z.any()).optional(),
 })
 
 export const ToolStatePending = z.object({
   status: z.literal("pending"),
-  input: z.record(z.any()).optional(),
+  input: z.record(z.string(), z.any()).optional(),
   raw: z.string().optional(),
 })
 
 export const ToolStateRunning = z.object({
   status: z.literal("running"),
-  input: z.record(z.any()),
+  input: z.record(z.string(), z.any()),
   time: z.object({
     start: z.number(),
   }),
@@ -43,9 +43,9 @@ export const ToolStateRunning = z.object({
 
 export const ToolStateCompleted = z.object({
   status: z.literal("completed"),
-  input: z.record(z.any()),
+  input: z.record(z.string(), z.any()),
   output: z.string(),
-  metadata: z.record(z.any()).optional(),
+  metadata: z.record(z.string(), z.any()).optional(),
   title: z.string().optional(),
   time: z.object({
     start: z.number(),
@@ -56,7 +56,7 @@ export const ToolStateCompleted = z.object({
 
 export const ToolStateError = z.object({
   status: z.literal("error"),
-  input: z.record(z.any()).optional(),
+  input: z.record(z.string(), z.any()).optional(),
   error: z.string(),
   time: z.object({
     start: z.number(),
@@ -76,7 +76,7 @@ export const ToolPart = PartBase.extend({
   tool: z.string(),
   callID: z.string(),
   state: ToolState,
-  metadata: z.record(z.any()).optional(),
+  metadata: z.record(z.string(), z.any()).optional(),
 })
 
 export const FilePart = PartBase.extend({

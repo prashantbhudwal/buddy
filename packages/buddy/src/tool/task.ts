@@ -154,7 +154,7 @@ export const TaskTool = Tool.define("task", async (initCtx) => {
   return {
     description,
     parameters,
-    async execute(params, ctx) {
+    async execute(params: z.infer<typeof parameters>, ctx) {
       if (!ctx.extra?.bypassAgentCheck) {
         await ctx.ask({
           permission: "task",
