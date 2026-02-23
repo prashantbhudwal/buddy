@@ -30,3 +30,6 @@ Thumbs.db
 packages/sdk/src/gen/
 packages/web/src/routeTree.gen.ts
 .turbo
+
+# Local links - used by agents for reference - check root agents.md
+/links/

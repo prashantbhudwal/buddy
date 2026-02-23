@@ -1,160 +1,133 @@
 # AGENTS.md
 
-This repo is a Bun + TypeScript monorepo managed with Turborepo.
-Primary packages:
-- `packages/buddy`: backend API (Bun + Hono + hono-openapi)
+Bun + TypeScript monorepo managed with Turborepo.
+
+**Packages:**
+
+- `packages/buddy`: backend (Bun + Hono + hono-openapi)
 - `packages/web`: frontend (React + Vite + TanStack Router + TanStack Query)
 - `packages/ui`: shared UI (shadcn/ui + Tailwind v4)
 - `packages/sdk`: OpenAPI-generated client (hey-api/openapi-ts)
 
-Editor/assistant rule files:
-- Cursor rules: none found (`.cursor/rules/`, `.cursorrules`)
-- Copilot instructions: none found (`.github/copilot-instructions.md`)
-
 ## OpenCode Reference (required)
-Buddy should be built by heavily referencing the OpenCode codebase, not from scratch.
 
-- Treat the OpenCode repo as the default reference/prompt for architecture and implementation details.
-- Prefer porting/copying code (including whole files) from OpenCode and adapting minimally to Buddy's stack.
-- Workflow: before implementing a new agent feature, search OpenCode for the closest equivalent and start from that.
-- OpenCode location: `~/code/opencode` (if that path doesn't exist, also check `~/Code/opencode`).
+Build Buddy core by referencing OpenCode, not from scratch.
 
-## Commands (run from repo root)
-### Install
+- OpenCode is the default reference for architecture and implementation.
+- Prefer porting/copying OpenCode code (whole files if needed), adapting minimally.
+- Before implementing any agent feature, find the closest OpenCode equivalent first.
+- OpenCode location: `~/code/opencode` (fallback: `~/Code/opencode`).
+
+## Commands
+
+All commands run from repo root.
+
 ```bash
 bun install
-```
-
-### Dev (run in separate terminals
-```bash
-bun run dev       # backend http://localhost:3000 (PORT=... to override)
-bun run dev:web   # web http://localhost:1420
-```
-
-### Typecheck / Build
-```bash
+bun run dev        # backend → http://localhost:3000 (PORT=... to override)
+bun run dev:web    # web    → http://localhost:1420
 bun run typecheck
 bun run build
-```
-
-### Lint
-```bash
-bun run lint
-```
-Note: `lint` is wired to `turbo run lint`, but no workspace currently defines a `lint` script.
-
-### SDK generation (requires backend running)
-```bash
-bun run sdk:generate
-# or
+bun run lint       # wired to turbo; no workspace defines lint yet
+bun run sdk:generate                            # requires backend running
 API_URL="http://localhost:3000/doc" bun run sdk:generate
 ```
 
-### Run a single package task (Turbo filter)
+**Turbo filter:**
+
 ```bash
 bun run build -- --filter=@buddy/backend
 bun run build -- --filter=@buddy/web
 bun run typecheck -- --filter=@buddy/ui
 ```
 
-### Run a single package task (direct)
+**Direct (per-package):**
+
 ```bash
 bun run --cwd packages/buddy dev
 bun run --cwd packages/web dev
 bun run --cwd packages/sdk generate
 ```
 
-## Ports & endpoints
+## Ports & Endpoints
+
 - Backend: `http://localhost:3000` (OpenAPI docs at `/doc`)
-- Backend endpoints: `GET /health`, `GET|POST /items`, `GET|PATCH|DELETE /items/:id`
-- Web dev server: `http://localhost:1420` (routes live under `packages/web/src/routes/*`)
+  - `GET /health`, `GET|POST /items`, `GET|PATCH|DELETE /items/:id`
+- Web: `http://localhost:1420` (routes under `packages/web/src/routes/*`)
 
 ## Tests (Bun)
-There are no committed tests yet, but Bun's built-in test runner is the expected default (see `spec/expectations.md`).
+
+No committed tests yet; Bun's test runner is the expected default (see `spec/expectations.md`).
 
 ```bash
-# Run all tests found under the current directory
-bun test
-
-# Run tests in one package (pattern match)
-bun test packages/buddy
+bun test                                         # all tests
+bun test packages/buddy                          # package (pattern)
 bun test packages/web
-
-# Run a single test file
-bun test packages/buddy/src/routes/items.test.ts
-
-# Run a single test by name (regex)
-bun test -t "items\\.create"
-
-# Coverage
+bun test packages/buddy/src/routes/items.test.ts # single file
+bun test -t "items\.create"                      # single test (regex)
 bun test --coverage
 ```
 
-## Code style (follow existing code; avoid drive-by reformatting)
-### TypeScript
-- Strict TS is enabled (`tsconfig.json`); keep types sound rather than casting.
-- Avoid `any`; prefer `unknown` + narrowing (zod, type guards, `in` checks).
-- Use `import type { ... }` for type-only imports (see `packages/ui/src/lib/utils.ts`).
-- Prefer type inference for locals; add explicit types for exports/public APIs.
+## Code Style
 
-### Imports & module resolution
+Follow existing code; avoid drive-by reformatting.
+
+### TypeScript
+
+- Strict TS enabled; keep types sound, no casting.
+- No `any`; use `unknown` + narrowing (zod, type guards, `in` checks).
+- `import type { ... }` for type-only imports.
+- Infer types for locals; annotate exports/public APIs explicitly.
+
+### Imports & Module Resolution
+
 - ESM everywhere (`"type": "module"`); no `require`.
-- Group imports: external deps, workspace packages (`@buddy/*`), then relative imports.
-- Runtime/server TS (notably `packages/buddy`): prefer `.js` in relative imports so emitted ESM is resolvable
-  (example: `packages/buddy/src/index.ts` imports `./routes/items.js`).
+- Import order: external deps → workspace packages (`@buddy/*`) → relative.
+- `packages/buddy` relative imports use `.js` extension (ESM emit).
 - Path aliases:
-  - `packages/ui`: `@/*` -> `packages/ui/src/*` (tsconfig paths)
-  - `packages/web`: `@/*` -> `packages/web/src/*` (tsconfig paths)
-  - `packages/web` Vite also rewrites UI-internal imports so `@/lib/*` and `@/components/ui/*` resolve to `packages/ui/src/...`
-- If you add new `@/...` imports inside `packages/ui` (e.g. `@/hooks/*`), either:
-  - extend `packages/web/vite.config.ts` alias rules, or
-  - switch those imports in UI to relative paths.
+  - `packages/ui`: `@/*` → `packages/ui/src/*`
+  - `packages/web`: `@/*` → `packages/web/src/*` (also Vite rewrites UI-internal imports)
+- Adding new `@/...` imports inside `packages/ui`: extend `packages/web/vite.config.ts` aliases or switch to relative paths.
 
 ### Formatting
-- No repo-wide Prettier/ESLint/Biome config is committed; keep each file consistent with its neighbors.
-- Indentation: 2 spaces.
-- Multiline objects/arrays/calls: keep trailing commas (existing style).
-- Semicolons vary (web app has some; backend/UI/sdk mostly omit). Do not "normalize" semicolons.
 
-### Naming & file layout
-- Components: PascalCase; hooks: `useX`; variables/functions: camelCase; constants: UPPER_SNAKE_CASE when truly constant.
-- TanStack Router:
-  - Routes live in `packages/web/src/routes/*`.
-  - Each route file exports `Route` created via `createFileRoute` / `createRootRoute`.
-- Backend (Hono):
-  - Route modules live in `packages/buddy/src/routes/*` and are composed from `packages/buddy/src/index.ts`.
-  - OpenAPI `operationId` uses `group.action` (examples: `health.check`, `items.list`).
+- No repo-wide Prettier/ESLint/Biome; match each file's existing style.
+- 2-space indentation; trailing commas on multiline objects/arrays/calls.
+- Semicolons vary by package — do not normalize them.
 
-### Error handling
+### Naming & File Layout
+
+- Components: PascalCase; hooks: `useX`; variables/functions: camelCase; constants: `UPPER_SNAKE_CASE`.
+- TanStack Router: route files in `packages/web/src/routes/*`, each exporting `Route` via `createFileRoute`/`createRootRoute`.
+- Hono: route modules in `packages/buddy/src/routes/*`, composed in `packages/buddy/src/index.ts`. `operationId` format: `group.action` (e.g. `health.check`, `items.list`).
+
+### Error Handling
+
 - Prefer early returns; keep happy-path left-aligned.
-- Backend:
-  - Validate request params/body with `validator(...)` + zod.
-  - Return expected errors as JSON + status (`c.json({ error: "..." }, 404)`), and include those statuses in `describeRoute.responses`.
-  - CORS is currently wide-open (`origin: "*"`) for dev; avoid expanding surface area without a reason.
-- Frontend:
-  - Check `res.ok` before parsing; throw Errors from `queryFn` / `mutationFn` so React Query can handle them.
-  - Avoid hardcoding hosts in new code; if you introduce an `/api` prefix, align it across:
-    - `packages/web/vite.config.ts` proxy
-    - `packages/sdk/scripts/generate.ts` (`baseUrl`)
-    - backend route mounting
+- Backend: validate with `validator(...)` + zod; return errors as `c.json({ error: "..." }, status)`; include those statuses in `describeRoute.responses`. CORS is `origin: "*"` for dev — don't expand without reason.
+- Frontend: check `res.ok` before parsing; throw from `queryFn`/`mutationFn` for React Query. Don't hardcode hosts; if adding `/api` prefix, align across `vite.config.ts` proxy, `sdk/scripts/generate.ts` `baseUrl`, and backend route mounting.
 
-### UI conventions
-- Shared UI components live in `packages/ui/src/components/ui`.
-- Export public UI surface from `packages/ui/src/index.ts` and consume via `@buddy/ui`.
-- Tailwind v4 scanning for the UI workspace is enabled via `@source "./**/*.{ts,tsx}";` in `packages/ui/src/index.css`; do not remove.
+### UI Conventions
 
-## Generated / do-not-edit
-- `packages/web/src/routeTree.gen.ts` is generated by TanStack Router (gitignored). Never hand-edit.
-- `packages/sdk/src/client.gen.ts` and `packages/sdk/src/types.gen.ts` are generated by `bun run sdk:generate` (gitignored).
-- Build artifacts are ignored: `dist/`, `.turbo/`, `*.tsbuildinfo`, `*.log` (see `.gitignore`).
+- Shared components: `packages/ui/src/components/ui`; export from `packages/ui/src/index.ts`, consume via `@buddy/ui`.
+- Tailwind v4 scanning enabled via `@source "./**/*.{ts,tsx}";` in `packages/ui/src/index.css` — do not remove.
 
-## Project expectations (aspirational; from `spec/expectations.md`)
-- Testing: Bun test runner; happy-dom for DOM-like tests.
-- Linting/formatting: eslint + prettier (not set up yet).
-- Storage: sqlite is expected later (current backend uses in-memory arrays).
-- Tauri: do not start a Tauri migration unless explicitly requested.
+## Generated / Do Not Edit
 
-## Session Learnings (non-obvious)
-- Root `.env` loading is tied to the root `dev` script (`bun --env-file=.env run --cwd packages/buddy dev`); running backend directly from `packages/buddy` can miss `KIMI_API_KEY` unless env file is passed explicitly.
-- `/api` pathing is a multi-package coupling: backend route prefix, SDK generation normalization, SDK client `baseUrl`, and web calls/proxy must stay aligned or chat endpoints fail with misleading 404s.
-- Multi-tenant chat is another cross-package coupling: web directory route/state, SDK directory header, backend directory middleware, and instance-scoped stores must all align or sends appear “stuck” while backend finishes normally.
+- `packages/web/src/routeTree.gen.ts` — TanStack Router (gitignored)
+- `packages/sdk/src/client.gen.ts`, `packages/sdk/src/types.gen.ts` — SDK (gitignored)
+- Build artifacts ignored: `dist/`, `.turbo/`, `*.tsbuildinfo`, `*.log`
+
+## Session Learnings
+
+- Root `.env` loading is tied to root `dev` script (`bun --env-file=.env run --cwd packages/buddy dev`); running backend directly from `packages/buddy` can miss `KIMI_API_KEY` unless env file is passed explicitly.
+- `/api` pathing is a multi-package coupling: backend prefix, SDK generation, SDK client `baseUrl`, and web proxy must stay aligned or chat endpoints fail with misleading 404s.
+- Multi-tenant chat couples: web directory route/state, SDK directory header, backend middleware, and instance-scoped stores — misalignment makes sends appear "stuck" while backend finishes normally.
+
+## Links
+
+Root has a `links/` folder of local symlinks.
+
+### HackDiary
+
+`links/HackDiary` symlinks the user's programming journal. Use it to infer user intentions and progression. "Diary" always means `HackDiary`.
