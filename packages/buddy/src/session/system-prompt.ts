@@ -86,22 +86,10 @@ export function condenseCurriculum(markdown: string): string {
   return result.join('\n')
 }
 
-// Must match DEFAULT_CURRICULUM in curriculum-service.ts exactly
-const DEFAULT_CURRICULUM_CONTENT = [
-  '# Curriculum',
-  '',
-  '## Kickoff',
-  '- [ ] Define your first learning milestone',
-  '',
-].join('\n')
-
 export async function loadCurriculumContext(): Promise<string> {
   try {
     const curriculum = await CurriculumService.peek()
-    if (
-      !curriculum ||
-      curriculum.markdown.trim() === DEFAULT_CURRICULUM_CONTENT.trim()
-    ) {
+    if (!curriculum) {
       return ''
     }
 

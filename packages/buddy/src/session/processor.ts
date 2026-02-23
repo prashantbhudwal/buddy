@@ -17,6 +17,7 @@ import { SessionInfo } from "./session-info.js"
 import { SessionStore } from "./session-store.js"
 import { prune, checkOverflow } from "./compaction.js"
 import { clearClaimed } from "./instruction.js"
+import { ProviderTransform } from "./provider-transform.js"
 
 type ProcessInput = {
   sessionID: string
@@ -686,7 +687,7 @@ export async function processAssistantResponse(input: ProcessInput) {
     await checkOverflow({
       sessionID: input.sessionID,
       contextLimit: 128_000,
-      maxOutput: 32_000,
+      maxOutput: ProviderTransform.maxOutputTokens(),
       lastUsageTotal: messageUsage.total,
     })
 

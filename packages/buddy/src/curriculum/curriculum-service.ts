@@ -1,11 +1,12 @@
 import fs from "node:fs/promises"
 import { CurriculumPath } from "./curriculum-path.js"
 
-const DEFAULT_CURRICULUM = [
-  "# Curriculum",
+const DEFAULT_CURRICULUM_MARKDOWN = [
+  "# Learning Curriculum",
   "",
-  "## Kickoff",
-  "- [ ] Define your first learning milestone",
+  "## Getting Started",
+  "- [ ] Define your learning goal for this workspace",
+  "- [ ] Add the first checkpoint you want to complete",
   "",
 ].join("\n")
 
@@ -32,41 +33,20 @@ export namespace CurriculumService {
     const filepath = CurriculumPath.file()
     const markdown = await fs.readFile(filepath, "utf8").catch(() => undefined)
 
-    if (markdown !== undefined) {
-      return {
-        path: filepath,
-        markdown,
-      }
+    if (markdown === undefined) return undefined
+    return {
+      path: filepath,
+      markdown,
     }
-
-    const legacyPath = CurriculumPath.legacyFile()
-    const legacyMarkdown = await fs.readFile(legacyPath, "utf8").catch(() => undefined)
-    if (legacyMarkdown !== undefined) {
-      return {
-        path: legacyPath,
-        markdown: legacyMarkdown,
-      }
-    }
-
-    return undefined
   }
 
   export async function read(): Promise<Document> {
     const existing = await peek()
-    if (existing) {
-      const canonicalPath = CurriculumPath.file()
-      if (existing.path !== canonicalPath) {
-        await fs.mkdir(CurriculumPath.directory(), { recursive: true })
-        await fs.writeFile(canonicalPath, existing.markdown, "utf8")
-        return {
-          path: canonicalPath,
-          markdown: existing.markdown,
-        }
-      }
-      return existing
+    if (existing) return existing
+    return {
+      path: CurriculumPath.file(),
+      markdown: DEFAULT_CURRICULUM_MARKDOWN,
     }
-
-    return write(DEFAULT_CURRICULUM)
   }
 
   export async function write(markdown: string) {

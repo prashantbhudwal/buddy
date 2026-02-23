@@ -16,6 +16,7 @@ import type { MessageWithParts } from "./message-v2/index.js"
 import { SessionStorage } from "./session-storage.js"
 import { SessionStore } from "./session-store.js"
 import { resolveRuntimeModel } from "./model-resolver.js"
+import { ProviderTransform } from "./provider-transform.js"
 
 const DOOM_LOOP_THRESHOLD = 3
 
@@ -86,7 +87,7 @@ async function resolveTools(input: {
   }
 
   for (const item of resolvedTools) {
-    if (disabled.has(item.id)) continue
+    if (item.id !== "invalid" && disabled.has(item.id)) continue
 
     tools[item.id] = tool({
       description: item.description,
@@ -267,6 +268,8 @@ export async function streamAssistant(input: StreamAssistantInput) {
     ...messages,
   ]
 
+  const maxOutputTokens = ProviderTransform.maxOutputTokens(modelIdentity)
+
   return streamText({
     async experimental_repairToolCall(failed) {
       const lower = failed.toolCall.toolName.toLowerCase()
@@ -290,10 +293,12 @@ export async function streamAssistant(input: StreamAssistantInput) {
     messages: messagesWithSystem,
     temperature: resolvedAgent.temperature ?? 1.0,
     topP: resolvedAgent.topP,
+    providerOptions: ProviderTransform.providerOptions(modelIdentity),
     tools,
     activeTools: tools ? Object.keys(tools).filter((name) => name !== "invalid") : undefined,
     toolChoice: tools ? "auto" : "none",
     abortSignal: input.abortSignal,
+    maxOutputTokens,
     maxRetries: 0,
   })
 }

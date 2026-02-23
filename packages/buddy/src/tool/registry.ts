@@ -48,7 +48,7 @@ export namespace ToolRegistry {
 
     const initialized = await Promise.all(
       builtins
-        .filter((tool) => !disabled.has(tool.id))
+        .filter((tool) => tool.id === "invalid" || !disabled.has(tool.id))
         .map(async (tool) => ({
           id: tool.id,
           ...(await tool.init({ agent })),
