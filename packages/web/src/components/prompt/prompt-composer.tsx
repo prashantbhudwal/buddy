@@ -7,6 +7,7 @@ type PromptComposerProps = {
   onChange: (value: string) => void
   onSubmit: () => void
   onAbort: () => void
+  className?: string
 }
 
 type IconProps = SVGProps<SVGSVGElement>
@@ -41,7 +42,7 @@ export function PromptComposer(props: PromptComposerProps) {
   const canSubmit = useMemo(() => !props.isBusy && props.value.trim().length > 0, [props.isBusy, props.value])
 
   return (
-    <div className="mx-4 mb-4">
+    <div className={props.className ?? "mx-4 mb-4"}>
       <form
         className="group/prompt-input relative z-10 rounded-[12px] border bg-card shadow-sm"
         onSubmit={(event) => {

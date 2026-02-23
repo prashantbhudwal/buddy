@@ -1,26 +1,46 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router"
 import { useEffect, useMemo, useRef, useState, type UIEvent } from "react"
 import { Button } from "@buddy/ui"
+import { ChatEmptyState } from "@/components/chat/chat-empty-state"
 import { ChatTranscript } from "@/components/chat/chat-transcript"
 import { PermissionDock } from "@/components/chat/permission-dock"
+import { ChatLeftSidebar } from "@/components/layout/chat-left-sidebar"
+import { ChatRightSidebar } from "@/components/layout/chat-right-sidebar"
+import { getFilename } from "@/components/layout/sidebar-helpers"
 import { PromptComposer } from "@/components/prompt/prompt-composer"
-import { LayoutLeftIcon, LayoutLeftPartialIcon } from "@/components/layout/sidebar-icons"
-import { SidebarShell } from "@/components/layout/sidebar-shell"
-import { SidebarWorkspace } from "@/components/layout/sidebar-workspace"
+import {
+  BookOpenIcon,
+  LayoutLeftIcon,
+  LayoutLeftPartialIcon,
+  LayoutRightIcon,
+  LayoutRightPartialIcon,
+  SettingsIcon,
+} from "@/components/layout/sidebar-icons"
 import { pickProjectDirectory } from "../lib/directory-picker"
 import { decodeDirectory, encodeDirectory } from "../lib/directory-token"
 import {
   abortPrompt,
   ensureDirectorySession,
+  loadPermissions,
+  loadMessages,
+  loadSessions,
   replyPermission,
   resyncDirectory,
   selectSession,
   sendPrompt,
   startNewSession,
+  updateSession,
 } from "../state/chat-actions"
 import { useChatStore } from "../state/chat-store"
 import { startChatSync } from "../state/chat-sync"
-import type { GlobalEvent, MessageInfo, MessagePart, SessionInfo } from "../state/chat-types"
+import type {
+  GlobalEvent,
+  MessageInfo,
+  MessagePart,
+  PermissionRequest,
+  SessionInfo,
+} from "../state/chat-types"
+import { useUiPreferences } from "../state/ui-preferences"
 
 export const Route = createFileRoute("/$directory/chat")({
   component: DirectoryChatPage,
@@ -78,10 +98,6 @@ function DirectoryChatPage() {
   const [draft, setDraft] = useState("")
   const transcriptRef = useRef<HTMLElement | null>(null)
   const [stickToBottom, setStickToBottom] = useState(true)
-  const [sidebarOpen, setSidebarOpen] = useState<boolean>(() => {
-    if (typeof window === "undefined") return true
-    return localStorage.getItem("buddy.sidebar.open") !== "0"
-  })
 
   const decodedDirectory = useMemo(() => {
     try {
@@ -108,6 +124,32 @@ function DirectoryChatPage() {
   const applyPermissionAsked = useChatStore((state) => state.applyPermissionAsked)
   const applyPermissionReplied = useChatStore((state) => state.applyPermissionReplied)
 
+  const leftSidebarOpen = useUiPreferences((state) => state.leftSidebarOpen)
+  const rightSidebarOpen = useUiPreferences((state) => state.rightSidebarOpen)
+  const rightSidebarTab = useUiPreferences((state) => state.rightSidebarTab)
+  const pinnedSessionIDs = useUiPreferences((state) => state.pinnedByDirectory[decodedDirectory] ?? [])
+  const unreadSessionMap = useUiPreferences((state) => state.unreadByDirectory[decodedDirectory] ?? {})
+  const setLeftSidebarOpen = useUiPreferences((state) => state.setLeftSidebarOpen)
+  const setRightSidebarOpen = useUiPreferences((state) => state.setRightSidebarOpen)
+  const setRightSidebarTab = useUiPreferences((state) => state.setRightSidebarTab)
+  const togglePinned = useUiPreferences((state) => state.togglePinned)
+  const markUnread = useUiPreferences((state) => state.markUnread)
+  const clearUnread = useUiPreferences((state) => state.clearUnread)
+  const clearDirectorySessionState = useUiPreferences((state) => state.clearDirectorySessionState)
+
+  const sessionID = directoryState?.sessionID
+  const sessions = directoryState?.sessions ?? []
+  const sessionTitle =
+    sessions.find((session) => session.id === sessionID)?.title ?? directoryState?.sessionTitle ?? "New chat"
+  const messages = directoryState?.messages ?? []
+  const isBusy = directoryState?.isBusy ?? false
+  const isReady = directoryState?.isReady ?? false
+  const error = directoryState?.error
+  const sessionStatusByID = directoryState?.sessionStatusByID ?? {}
+  const pendingPermissions = directoryState?.pendingPermissions ?? []
+  const unreadSessionIDs = useMemo(() => Object.keys(unreadSessionMap), [unreadSessionMap])
+  const showDevSessionTrace = import.meta.env.DEV
+
   useEffect(() => {
     if (!decodedDirectory) return
 
@@ -115,11 +157,6 @@ function DirectoryChatPage() {
     setActiveDirectory(decodedDirectory)
     void ensureDirectorySession(decodedDirectory)
   }, [decodedDirectory, ensureProject, setActiveDirectory])
-
-  useEffect(() => {
-    if (typeof window === "undefined") return
-    localStorage.setItem("buddy.sidebar.open", sidebarOpen ? "1" : "0")
-  }, [sidebarOpen])
 
   useEffect(() => {
     if (!decodedDirectory) return
@@ -165,7 +202,12 @@ function DirectoryChatPage() {
         }
 
         if (payload.type === "message.updated") {
-          applyMessageUpdated(directory, properties.info as MessageInfo)
+          const info = properties.info as MessageInfo
+          applyMessageUpdated(directory, info)
+          const activeSessionID = useChatStore.getState().directories[directory]?.sessionID
+          if (info.role === "assistant" && info.sessionID && info.sessionID !== activeSessionID) {
+            useUiPreferences.getState().markUnread(directory, info.sessionID)
+          }
           return
         }
 
@@ -186,7 +228,7 @@ function DirectoryChatPage() {
         }
 
         if (payload.type === "permission.asked") {
-          applyPermissionAsked(directory, properties as any)
+          applyPermissionAsked(directory, properties as PermissionRequest)
           return
         }
 
@@ -212,21 +254,14 @@ function DirectoryChatPage() {
     setStreamStatus,
   ])
 
-  const sessionID = directoryState?.sessionID
-  const sessions = directoryState?.sessions ?? []
-  const sessionTitle =
-    sessions.find((session) => session.id === sessionID)?.title ?? directoryState?.sessionTitle ?? "New chat"
-  const messages = directoryState?.messages ?? []
-  const isBusy = directoryState?.isBusy ?? false
-  const isReady = directoryState?.isReady ?? false
-  const error = directoryState?.error
-  const sessionStatusByID = directoryState?.sessionStatusByID ?? {}
-  const pendingPermissions = directoryState?.pendingPermissions ?? []
-  const showDevSessionTrace = import.meta.env.DEV
-
   useEffect(() => {
     setStickToBottom(true)
   }, [sessionID])
+
+  useEffect(() => {
+    if (!decodedDirectory || !sessionID) return
+    clearUnread(decodedDirectory, sessionID)
+  }, [clearUnread, decodedDirectory, sessionID])
 
   useEffect(() => {
     if (!stickToBottom) return
@@ -276,6 +311,7 @@ function DirectoryChatPage() {
     if (!nextSessionID || nextSessionID === sessionID) return
     try {
       await selectSession(decodedDirectory, nextSessionID)
+      clearUnread(decodedDirectory, nextSessionID)
     } catch {
       // Store already captures and displays errors.
     }
@@ -329,101 +365,203 @@ function DirectoryChatPage() {
     navigate({ to: "/chat" })
   }
 
+  async function onArchiveSession(targetSessionID: string) {
+    if (!decodedDirectory) return
+    try {
+      await updateSession({
+        directory: decodedDirectory,
+        sessionID: targetSessionID,
+        archivedAt: Date.now(),
+      })
+      clearDirectorySessionState(decodedDirectory, targetSessionID)
+      await loadSessions(decodedDirectory)
+      await loadPermissions(decodedDirectory)
+
+      const activeSessionID = useChatStore.getState().directories[decodedDirectory]?.sessionID
+      if (!activeSessionID) {
+        await startNewSession(decodedDirectory)
+        await loadPermissions(decodedDirectory)
+        return
+      }
+
+      if (activeSessionID !== targetSessionID) {
+        await loadMessages(decodedDirectory, activeSessionID)
+        clearUnread(decodedDirectory, activeSessionID)
+      }
+    } catch {
+      // action layers keep directory-level error state
+    }
+  }
+
+  async function onRenameSession(targetSessionID: string, title: string) {
+    if (!decodedDirectory) return
+    const trimmed = title.trim()
+    if (!trimmed) return
+    try {
+      const updated = await updateSession({
+        directory: decodedDirectory,
+        sessionID: targetSessionID,
+        title: trimmed,
+      })
+      applySessionUpdated(decodedDirectory, updated)
+    } catch {
+      // action layers keep directory-level error state
+    }
+  }
+
+  function onToggleUnreadSession(targetSessionID: string, unread: boolean) {
+    if (!decodedDirectory) return
+    if (unread) {
+      markUnread(decodedDirectory, targetSessionID)
+      return
+    }
+    clearUnread(decodedDirectory, targetSessionID)
+  }
+
+  function openCurriculumPanel() {
+    setRightSidebarTab("curriculum")
+    setRightSidebarOpen(true)
+  }
+
+  function openSettingsPanel() {
+    setRightSidebarTab("settings")
+    setRightSidebarOpen(true)
+  }
+
   if (!decodedDirectory) {
     return <div className="p-6">Invalid project identifier in URL.</div>
   }
 
   return (
-    <SidebarShell
-      projects={projects}
-      currentDirectory={decodedDirectory}
-      sidebarOpen={sidebarOpen}
-      onSelectProject={onSwitchDirectory}
-      onOpenProject={() => {
-        void onOpenProject()
-      }}
-      panel={
-        <SidebarWorkspace
-          directory={decodedDirectory}
-          sessions={sessions}
-          activeSessionID={sessionID}
-          sessionStatusByID={sessionStatusByID}
-          onSelectSession={onSelectSession}
-          onNewSession={onNewSession}
-          onRemoveProject={() => onRemoveProject(decodedDirectory)}
-        />
-      }
-      content={
-        <main className="flex-1 min-h-0 flex flex-col bg-background/20">
-          <header className="px-4 py-3 border-b flex items-center justify-between gap-3">
-            <div className="min-w-0 flex items-center gap-2">
-              <Button
-                variant="ghost"
-                size="icon-xs"
-                onClick={() => setSidebarOpen((value) => !value)}
-                title={sidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
-              >
-                {sidebarOpen ? (
-                  <LayoutLeftPartialIcon className="size-3.5" />
-                ) : (
-                  <LayoutLeftIcon className="size-3.5" />
-                )}
-              </Button>
-              <div className="min-w-0">
-                <h1 className="text-sm md:text-base font-medium truncate">{sessionTitle}</h1>
-                <p className="text-xs text-muted-foreground truncate">{sessionID ?? "No active session"}</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              {showDevSessionTrace && sessionID && (
+    <div className="h-screen w-full overflow-hidden bg-card">
+      <div className="h-full w-full flex min-w-0">
+        {leftSidebarOpen ? (
+          <ChatLeftSidebar
+            directories={projects}
+            currentDirectory={decodedDirectory}
+            sessions={sessions}
+            activeSessionID={sessionID}
+            sessionStatusByID={sessionStatusByID}
+            pinnedSessionIDs={pinnedSessionIDs}
+            unreadSessionIDs={unreadSessionIDs}
+            onSelectDirectory={onSwitchDirectory}
+            onOpenDirectory={() => {
+              void onOpenProject()
+            }}
+            onNewSession={() => {
+              void onNewSession()
+            }}
+            onSelectSession={(targetSessionID) => {
+              void onSelectSession(targetSessionID)
+            }}
+            onTogglePin={(targetSessionID) => togglePinned(decodedDirectory, targetSessionID)}
+            onToggleUnread={onToggleUnreadSession}
+            onArchiveSession={onArchiveSession}
+            onRenameSession={onRenameSession}
+            onOpenCurriculum={openCurriculumPanel}
+            onOpenSettings={openSettingsPanel}
+            onCloseDirectory={() => onRemoveProject(decodedDirectory)}
+          />
+        ) : null}
+
+        <main className="flex-1 min-w-0 min-h-0 flex flex-col bg-background/20">
+          <header className="border-b px-3 py-2">
+            <div className="mx-auto flex w-full max-w-[1080px] items-center justify-between gap-2">
+              <div className="min-w-0 flex items-center gap-1.5">
                 <Button
-                  size="sm"
-                  variant="secondary"
-                  onClick={() => {
-                    void copyToClipboard(
-                      buildSessionTrace({
-                        directory: decodedDirectory,
-                        sessionID,
-                        streamStatus,
-                      }),
-                    )
-                  }}
+                  variant="ghost"
+                  size="icon-xs"
+                  onClick={() => setLeftSidebarOpen(!leftSidebarOpen)}
+                  title={leftSidebarOpen ? "Collapse left panel" : "Expand left panel"}
                 >
-                  Copy Trace
+                  {leftSidebarOpen ? (
+                    <LayoutLeftPartialIcon className="size-3.5" />
+                  ) : (
+                    <LayoutLeftIcon className="size-3.5" />
+                  )}
                 </Button>
-              )}
-              <span className="text-xs text-muted-foreground hidden md:inline">SSE: {streamStatus}</span>
+                <div className="min-w-0">
+                  <h1 className="text-sm md:text-base font-medium truncate">{sessionTitle}</h1>
+                  <p className="text-xs text-muted-foreground truncate">
+                    local: {getFilename(decodedDirectory)}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-1.5">
+                <Button variant="ghost" size="icon-xs" onClick={openCurriculumPanel} title="Open curriculum">
+                  <BookOpenIcon className="size-3.5" />
+                </Button>
+                <Button variant="ghost" size="icon-xs" onClick={openSettingsPanel} title="Open settings">
+                  <SettingsIcon className="size-3.5" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon-xs"
+                  onClick={() => setRightSidebarOpen(!rightSidebarOpen)}
+                  title={rightSidebarOpen ? "Collapse right panel" : "Expand right panel"}
+                >
+                  {rightSidebarOpen ? (
+                    <LayoutRightPartialIcon className="size-3.5" />
+                  ) : (
+                    <LayoutRightIcon className="size-3.5" />
+                  )}
+                </Button>
+
+                {showDevSessionTrace && sessionID ? (
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    onClick={() => {
+                      void copyToClipboard(
+                        buildSessionTrace({
+                          directory: decodedDirectory,
+                          sessionID,
+                          streamStatus,
+                        }),
+                      )
+                    }}
+                  >
+                    Copy Trace
+                  </Button>
+                ) : null}
+                <span className="text-xs text-muted-foreground hidden lg:inline">SSE: {streamStatus}</span>
+              </div>
             </div>
           </header>
 
-          <section
-            ref={transcriptRef}
-            onScroll={onTranscriptScroll}
-            className="flex-1 min-h-0 overflow-y-auto p-4 space-y-4"
-          >
-            {!isReady ? (
-              <p className="text-sm text-muted-foreground">Loading project chat...</p>
-            ) : messages.length === 0 ? (
-              <p className="text-sm text-muted-foreground">Start the conversation.</p>
-            ) : (
-              <ChatTranscript
-                messages={messages}
-                isBusy={isBusy}
-                onOpenSession={(targetSessionID) => {
-                  void onSelectSession(targetSessionID)
-                }}
-              />
-            )}
+          <section ref={transcriptRef} onScroll={onTranscriptScroll} className="flex-1 min-h-0 overflow-y-auto">
+            <div className="mx-auto w-full max-w-[1080px] px-4 py-4 space-y-4">
+              {!isReady ? (
+                <p className="text-sm text-muted-foreground">Loading notebook chat...</p>
+              ) : messages.length === 0 ? (
+                <ChatEmptyState
+                  directoryLabel={getFilename(decodedDirectory)}
+                  onUsePrompt={setDraft}
+                  onOpenCurriculum={openCurriculumPanel}
+                />
+              ) : (
+                <ChatTranscript
+                  messages={messages}
+                  isBusy={isBusy}
+                  onOpenSession={(targetSessionID) => {
+                    void onSelectSession(targetSessionID)
+                  }}
+                />
+              )}
+            </div>
           </section>
 
-          {error && (
-            <div className="mx-4 mb-3 rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
-              {error}
+          {error ? (
+            <div className="mx-auto w-full max-w-[1080px] px-4 pb-2">
+              <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
+                {error}
+              </div>
             </div>
-          )}
+          ) : null}
 
-          {pendingPermissions.length > 0 && (
-            <div className="mx-4 mb-3">
+          {pendingPermissions.length > 0 ? (
+            <div className="mx-auto w-full max-w-[1080px] px-4 pb-2">
               <PermissionDock
                 request={pendingPermissions[0]!}
                 pendingCount={Math.max(0, pendingPermissions.length - 1)}
@@ -432,21 +570,33 @@ function DirectoryChatPage() {
                 }}
               />
             </div>
-          )}
+          ) : null}
 
-          <PromptComposer
-            value={draft}
-            isBusy={isBusy}
-            onChange={setDraft}
-            onAbort={() => {
-              void onAbort()
-            }}
-            onSubmit={() => {
-              void onSend()
-            }}
-          />
+          <div className="mx-auto w-full max-w-[1080px] px-4">
+            <PromptComposer
+              className="mb-4"
+              value={draft}
+              isBusy={isBusy}
+              onChange={setDraft}
+              onAbort={() => {
+                void onAbort()
+              }}
+              onSubmit={() => {
+                void onSend()
+              }}
+            />
+          </div>
         </main>
-      }
-    />
+
+        {rightSidebarOpen ? (
+          <ChatRightSidebar
+            directory={decodedDirectory}
+            tab={rightSidebarTab}
+            onTabChange={setRightSidebarTab}
+            onClose={() => setRightSidebarOpen(false)}
+          />
+        ) : null}
+      </div>
+    </div>
   )
 }

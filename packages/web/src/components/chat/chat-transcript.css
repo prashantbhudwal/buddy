@@ -93,10 +93,19 @@
 .buddy-message-meta {
   color: var(--muted-foreground);
   font-size: 0.72rem;
+  opacity: 0;
+  transition: opacity 0.15s ease;
 }
 
 .buddy-message-meta[data-interrupted] {
   color: color-mix(in oklab, var(--muted-foreground) 74%, #f56b6b);
+}
+
+.buddy-user-bubble-wrap:hover .buddy-message-meta,
+.buddy-user-bubble-wrap:focus-within .buddy-message-meta,
+.buddy-assistant-text-part:hover .buddy-message-meta,
+.buddy-assistant-text-part:focus-within .buddy-message-meta {
+  opacity: 1;
 }
 
 .buddy-user-bubble {

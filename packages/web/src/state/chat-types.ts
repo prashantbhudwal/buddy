@@ -4,6 +4,7 @@ export type SessionInfo = {
   time: {
     created: number
     updated: number
+    archived?: number
   }
 }
 

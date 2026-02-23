@@ -62,11 +62,16 @@ function ensureDirectoryState(store: ChatStore, directory: string) {
 
 function sortSessions(sessions: SessionInfo[]) {
   return sessions
+    .filter((session) => !session.time.archived)
     .slice()
     .sort((a, b) => (b.time.updated ?? b.time.created) - (a.time.updated ?? a.time.created))
 }
 
 function upsertSession(sessions: SessionInfo[], incoming: SessionInfo) {
+  if (incoming.time.archived) {
+    return sortSessions(sessions.filter((session) => session.id !== incoming.id))
+  }
+
   const index = sessions.findIndex((session) => session.id === incoming.id)
   if (index === -1) {
     return sortSessions([...sessions, incoming])
@@ -176,7 +181,7 @@ export const useChatStore = create<ChatStore>()(
                 ...current,
                 sessions: sortedSessions,
                 sessionID: activeSessionID,
-                sessionTitle: activeInfo?.title ?? current.sessionTitle,
+                sessionTitle: activeInfo?.title ?? DEFAULT_TITLE,
               },
             },
             lastSessionByDirectory: activeSessionID
@@ -263,16 +268,43 @@ export const useChatStore = create<ChatStore>()(
         set((state) => {
           const current = ensureDirectoryState(state as ChatStore, directory)
           const nextSessions = upsertSession(current.sessions, info)
-          const isActive = current.sessionID === info.id
+          const nextSessionID =
+            current.sessionID === info.id && info.time.archived
+              ? nextSessions[0]?.id
+              : current.sessionID
+          const switchedActiveSession = nextSessionID !== current.sessionID
+          const nextSessionStatusByID = {
+            ...current.sessionStatusByID,
+          }
+          if (info.time.archived) {
+            delete nextSessionStatusByID[info.id]
+          }
+          const nextActiveInfo = nextSessionID
+            ? nextSessions.find((session) => session.id === nextSessionID)
+            : undefined
+          const nextBusy = nextSessionID ? nextSessionStatusByID[nextSessionID] === "busy" : false
           return {
             directories: {
               ...state.directories,
               [directory]: {
                 ...current,
                 sessions: nextSessions,
-                sessionTitle: isActive ? info.title || DEFAULT_TITLE : current.sessionTitle,
+                sessionID: nextSessionID,
+                sessionTitle: nextActiveInfo?.title ?? DEFAULT_TITLE,
+                messages: switchedActiveSession ? [] : current.messages,
+                pendingPermissions: switchedActiveSession
+                  ? current.pendingPermissions.filter((request) => request.sessionID === nextSessionID)
+                  : current.pendingPermissions,
+                isBusy: nextBusy,
+                sessionStatusByID: nextSessionStatusByID,
               },
             },
+            lastSessionByDirectory: nextSessionID
+              ? {
+                  ...state.lastSessionByDirectory,
+                  [directory]: nextSessionID,
+                }
+              : state.lastSessionByDirectory,
           }
         })
       },

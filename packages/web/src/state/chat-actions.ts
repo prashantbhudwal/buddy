@@ -28,6 +28,27 @@ function stringifyError(error: unknown) {
   }
 }
 
+export type ProviderInfo = {
+  id: string
+  name: string
+  models: Array<{
+    id: string
+    name?: string
+  }>
+}
+
+export type ConfigProvidersResponse = {
+  providers: ProviderInfo[]
+  default: Record<string, string>
+}
+
+export type AgentConfigOption = {
+  name: string
+  description?: string
+  mode: "subagent" | "primary" | "all"
+  hidden?: boolean
+}
+
 async function unwrap<T>(promise: Promise<{ data?: T; error?: unknown }>) {
   const result = await promise
   if (result.error) {
@@ -290,6 +311,120 @@ export async function replyPermission(input: {
     useChatStore.getState().applyPermissionReplied(input.directory, input.requestID)
   }
   return result
+}
+
+export async function updateSession(input: {
+  directory: string
+  sessionID: string
+  title?: string
+  archivedAt?: number
+}) {
+  const store = useChatStore.getState()
+  const payload: {
+    title?: string
+    time?: {
+      archived?: number
+    }
+  } = {}
+
+  if (input.title !== undefined) {
+    payload.title = input.title
+  }
+
+  if (input.archivedAt !== undefined) {
+    payload.time = {
+      archived: input.archivedAt,
+    }
+  }
+
+  try {
+    const response = await fetch(`/api/session/${encodeURIComponent(input.sessionID)}`, {
+      method: "PATCH",
+      headers: {
+        "content-type": "application/json",
+        "x-buddy-directory": directoryHeaderValue(input.directory),
+      },
+      body: JSON.stringify(payload),
+    })
+
+    if (!response.ok) {
+      const result = (await response.json().catch(() => undefined)) as { error?: string; message?: string } | undefined
+      const message = result?.error ?? result?.message ?? `Request failed (${response.status})`
+      throw new Error(message)
+    }
+
+    const session = (await response.json()) as SessionInfo
+    store.setDirectoryError(input.directory, undefined)
+    return session
+  } catch (error) {
+    store.setDirectoryError(input.directory, stringifyError(error))
+    throw error
+  }
+}
+
+export async function loadCurriculum(directory: string) {
+  const response = await fetch("/api/curriculum", {
+    headers: {
+      "x-buddy-directory": directoryHeaderValue(directory),
+    },
+  })
+
+  if (!response.ok) {
+    const result = (await response.json().catch(() => undefined)) as { error?: string; message?: string } | undefined
+    throw new Error(result?.error ?? result?.message ?? `Request failed (${response.status})`)
+  }
+
+  const payload = (await response.json()) as { markdown: string }
+  return payload.markdown
+}
+
+export async function saveCurriculum(directory: string, markdown: string) {
+  const response = await fetch("/api/curriculum", {
+    method: "PUT",
+    headers: {
+      "content-type": "application/json",
+      "x-buddy-directory": directoryHeaderValue(directory),
+    },
+    body: JSON.stringify({ markdown }),
+  })
+
+  if (!response.ok) {
+    const result = (await response.json().catch(() => undefined)) as { error?: string; message?: string } | undefined
+    throw new Error(result?.error ?? result?.message ?? `Request failed (${response.status})`)
+  }
+
+  const payload = (await response.json()) as { markdown: string }
+  return payload.markdown
+}
+
+export async function loadProjectConfig(directory: string) {
+  return requestJson<Record<string, unknown>>(directory, "/api/config")
+}
+
+export async function patchProjectConfig(directory: string, patch: Record<string, unknown>) {
+  const response = await fetch("/api/config", {
+    method: "PATCH",
+    headers: {
+      "content-type": "application/json",
+      "x-buddy-directory": directoryHeaderValue(directory),
+    },
+    body: JSON.stringify(patch),
+  })
+
+  if (!response.ok) {
+    const result = (await response.json().catch(() => undefined)) as { error?: string; message?: string } | undefined
+    throw new Error(result?.error ?? result?.message ?? `Request failed (${response.status})`)
+  }
+
+  return (await response.json()) as Record<string, unknown>
+}
+
+export async function loadProviderCatalog(directory: string) {
+  return requestJson<ConfigProvidersResponse>(directory, "/api/config/providers")
+}
+
+export async function loadAgentCatalog(directory: string) {
+  return requestJson<AgentConfigOption[]>(directory, "/api/config/agents")
 }
 
 function sleep(ms: number) {
