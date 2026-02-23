@@ -7,8 +7,9 @@
     "dev": "bun --env-file=../../.env run --watch src/index.ts",
     "build": "tsc",
     "typecheck": "tsc --noEmit",
-    "start": "bun run src/index.ts",
+    "start": "bun --env-file=../../.env run src/index.ts",
     "test": "bun test test",
+    "test:parity": "bun test test/parity",
     "db": "bun drizzle-kit"
   },
   "dependencies": {
