@@ -1,3 +1,4 @@
+import type { CSSProperties } from "react"
 import { useEffect, useMemo, useState } from "react"
 import {
   Button,
@@ -30,6 +31,8 @@ type ChatRightSidebarProps = {
   tab: RightSidebarTab
   onTabChange: (tab: RightSidebarTab) => void
   onClose: () => void
+  className?: string
+  style?: CSSProperties
 }
 
 function stringifyError(error: unknown) {
@@ -248,7 +251,10 @@ export function ChatRightSidebar(props: ChatRightSidebarProps) {
   }
 
   return (
-    <aside className="w-[360px] shrink-0 border-l bg-card/50 flex flex-col min-h-0">
+    <aside
+      className={`shrink-0 border-l bg-card/50 flex flex-col min-h-0 ${props.className ?? ""}`}
+      style={props.style}
+    >
       <header className="border-b px-3 py-2 flex items-center justify-between gap-2">
         <h2 className="text-sm font-medium">Secondary Panel</h2>
         <Button variant="ghost" size="icon-xs" onClick={props.onClose} title="Close panel">

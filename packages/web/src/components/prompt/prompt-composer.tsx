@@ -1,5 +1,6 @@
 import { useMemo, type SVGProps } from "react"
-import { shouldSubmitComposer } from "../../lib/chat-input"
+import { promptPlaceholder } from "./placeholder"
+import { createPromptSubmit } from "./submit"
 
 type PromptComposerProps = {
   value: string
@@ -38,49 +39,60 @@ function PlusIcon(props: IconProps) {
   )
 }
 
+function translatePromptPlaceholder(key: string, params?: Record<string, string>) {
+  if (key === "prompt.placeholder.shell") return "Run a shell command"
+  if (key === "prompt.placeholder.summarizeComments") return "Summarize these comments"
+  if (key === "prompt.placeholder.summarizeComment") return "Summarize this comment"
+  if (key === "prompt.placeholder.normal") {
+    if (params?.example) return `Try: ${params.example}`
+    return "Ask Buddy"
+  }
+  return "Ask Buddy"
+}
+
 export function PromptComposer(props: PromptComposerProps) {
   const canSubmit = useMemo(() => !props.isBusy && props.value.trim().length > 0, [props.isBusy, props.value])
+  const placeholder = useMemo(
+    () =>
+      promptPlaceholder({
+        mode: "normal",
+        commentCount: 0,
+        example: "",
+        suggest: false,
+        t: translatePromptPlaceholder,
+      }),
+    [],
+  )
+
+  const submit = createPromptSubmit({
+    value: () => props.value,
+    isBusy: () => props.isBusy,
+    onSubmit: props.onSubmit,
+    onAbort: props.onAbort,
+  })
 
   return (
     <div className={props.className ?? "mx-4 mb-4"}>
       <form
         className="group/prompt-input relative z-10 rounded-[12px] border bg-card shadow-sm"
-        onSubmit={(event) => {
-          event.preventDefault()
-          if (props.isBusy) {
-            props.onAbort()
-            return
-          }
-          if (!canSubmit) return
-          props.onSubmit()
-        }}
+        onSubmit={(event) => submit.handleSubmit(event)}
       >
         <div className="relative">
           <textarea
             value={props.value}
             onChange={(event) => props.onChange(event.target.value)}
-            onKeyDown={(event) => {
-              if (
-                shouldSubmitComposer({
-                  key: event.key,
-                  shiftKey: event.shiftKey,
-                  ctrlKey: event.ctrlKey,
-                  metaKey: event.metaKey,
-                  altKey: event.altKey,
-                  isComposing: event.nativeEvent.isComposing,
-                })
-              ) {
-                event.preventDefault()
-                if (props.isBusy) {
-                  props.onAbort()
-                  return
-                }
-                if (canSubmit) {
-                  props.onSubmit()
-                }
-              }
-            }}
-            placeholder="Ask Buddy"
+            onKeyDown={(event) =>
+              submit.handleKeyDown({
+                key: event.key,
+                shiftKey: event.shiftKey,
+                ctrlKey: event.ctrlKey,
+                metaKey: event.metaKey,
+                altKey: event.altKey,
+                isComposing: event.nativeEvent.isComposing,
+                preventDefault: () => event.preventDefault(),
+              })
+            }
+            placeholder={placeholder}
             className="w-full min-h-[84px] max-h-[240px] resize-none overflow-y-auto rounded-[12px] border-0 bg-transparent pl-3 pr-24 pt-2 pb-11 text-sm leading-6 text-foreground focus:outline-none"
           />
 

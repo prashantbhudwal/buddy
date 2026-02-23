@@ -1,11 +1,11 @@
-function normalizeDirectory(input: string) {
+export function normalizeDirectory(input: string) {
   const trimmed = input.trim().replaceAll("\\", "/")
   if (!trimmed) return ""
   if (trimmed === "/") return trimmed
   return trimmed.replace(/\/+$/, "")
 }
 
-function hasAbsolutePath(input: string) {
+export function hasAbsolutePath(input: string) {
   return input.startsWith("/") || /^[A-Za-z]:[\\/]/.test(input)
 }
 

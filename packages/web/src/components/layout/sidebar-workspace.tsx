@@ -4,6 +4,7 @@ import type { SessionInfo } from "@/state/chat-types"
 import { getFilename } from "./sidebar-helpers"
 import { ChevronDownIcon, ChevronRightIcon, PlusIcon } from "./sidebar-icons"
 import { NewSessionItem, SessionItem } from "./sidebar-items"
+import { workspaceOpenState } from "./sidebar-workspace-helpers"
 
 type SidebarWorkspaceProps = {
   directory: string
@@ -16,8 +17,9 @@ type SidebarWorkspaceProps = {
 }
 
 export function SidebarWorkspace(props: SidebarWorkspaceProps) {
-  const [open, setOpen] = useState(true)
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({})
   const workspaceLabel = useMemo(() => getFilename(props.directory), [props.directory])
+  const open = workspaceOpenState(expanded, props.directory, true)
 
   return (
     <aside className="w-full md:w-[320px] shrink-0 max-h-[45vh] md:max-h-none border-b md:border-b-0 md:border-r bg-background/20 flex flex-col min-h-0">
@@ -26,7 +28,12 @@ export function SidebarWorkspace(props: SidebarWorkspaceProps) {
           <button
             type="button"
             className="w-full rounded-md px-2 py-1.5 text-left hover:bg-muted/40 transition-colors"
-            onClick={() => setOpen((value) => !value)}
+            onClick={() =>
+              setExpanded((current) => ({
+                ...current,
+                [props.directory]: !workspaceOpenState(current, props.directory, true),
+              }))
+            }
           >
             <div className="flex items-center gap-2 min-w-0 pr-12">
               {open ? (

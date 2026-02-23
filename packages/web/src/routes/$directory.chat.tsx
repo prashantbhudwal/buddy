@@ -6,6 +6,7 @@ import { ChatTranscript } from "@/components/chat/chat-transcript"
 import { PermissionDock } from "@/components/chat/permission-dock"
 import { ChatLeftSidebar } from "@/components/layout/chat-left-sidebar"
 import { ChatRightSidebar } from "@/components/layout/chat-right-sidebar"
+import { ResizeHandle } from "@/components/layout/resize-handle"
 import { getFilename } from "@/components/layout/sidebar-helpers"
 import { PromptComposer } from "@/components/prompt/prompt-composer"
 import {
@@ -47,6 +48,11 @@ export const Route = createFileRoute("/$directory/chat")({
 })
 
 const BOTTOM_THRESHOLD_PX = 96
+const SIDEBAR_MIN_WIDTH = 244
+const SIDEBAR_DEFAULT_MAX_WIDTH = 1000
+const RIGHT_SIDEBAR_MIN_WIDTH = 200
+const RIGHT_SIDEBAR_MAX_WIDTH = 480
+const RIGHT_SIDEBAR_COLLAPSE_THRESHOLD = 160
 
 async function copyToClipboard(text: string) {
   if (!text) return false
@@ -109,11 +115,11 @@ function DirectoryChatPage() {
 
   const projects = useChatStore((state) => state.projects)
   const streamStatus = useChatStore((state) => state.streamStatus)
+  const allDirectoryStates = useChatStore((state) => state.directories)
   const directoryState = useChatStore((state) =>
     decodedDirectory ? state.directories[decodedDirectory] : undefined,
   )
   const ensureProject = useChatStore((state) => state.ensureProject)
-  const removeProject = useChatStore((state) => state.removeProject)
   const setActiveDirectory = useChatStore((state) => state.setActiveDirectory)
   const setStreamStatus = useChatStore((state) => state.setStreamStatus)
   const applySessionUpdated = useChatStore((state) => state.applySessionUpdated)
@@ -125,12 +131,16 @@ function DirectoryChatPage() {
   const applyPermissionReplied = useChatStore((state) => state.applyPermissionReplied)
 
   const leftSidebarOpen = useUiPreferences((state) => state.leftSidebarOpen)
+  const leftSidebarWidth = useUiPreferences((state) => state.leftSidebarWidth)
   const rightSidebarOpen = useUiPreferences((state) => state.rightSidebarOpen)
+  const rightSidebarWidth = useUiPreferences((state) => state.rightSidebarWidth)
   const rightSidebarTab = useUiPreferences((state) => state.rightSidebarTab)
-  const pinnedSessionIDs = useUiPreferences((state) => state.pinnedByDirectory[decodedDirectory] ?? [])
-  const unreadSessionMap = useUiPreferences((state) => state.unreadByDirectory[decodedDirectory] ?? {})
+  const pinnedByDirectory = useUiPreferences((state) => state.pinnedByDirectory)
+  const unreadByDirectory = useUiPreferences((state) => state.unreadByDirectory)
   const setLeftSidebarOpen = useUiPreferences((state) => state.setLeftSidebarOpen)
+  const setLeftSidebarWidth = useUiPreferences((state) => state.setLeftSidebarWidth)
   const setRightSidebarOpen = useUiPreferences((state) => state.setRightSidebarOpen)
+  const setRightSidebarWidth = useUiPreferences((state) => state.setRightSidebarWidth)
   const setRightSidebarTab = useUiPreferences((state) => state.setRightSidebarTab)
   const togglePinned = useUiPreferences((state) => state.togglePinned)
   const markUnread = useUiPreferences((state) => state.markUnread)
@@ -145,10 +155,25 @@ function DirectoryChatPage() {
   const isBusy = directoryState?.isBusy ?? false
   const isReady = directoryState?.isReady ?? false
   const error = directoryState?.error
-  const sessionStatusByID = directoryState?.sessionStatusByID ?? {}
   const pendingPermissions = directoryState?.pendingPermissions ?? []
-  const unreadSessionIDs = useMemo(() => Object.keys(unreadSessionMap), [unreadSessionMap])
+  const sessionsByDirectory = useMemo(
+    () =>
+      Object.fromEntries(
+        projects.map((directory) => [directory, allDirectoryStates[directory]?.sessions ?? []]),
+      ) as Record<string, SessionInfo[]>,
+    [allDirectoryStates, projects],
+  )
+  const sessionStatusByDirectory = useMemo(
+    () =>
+      Object.fromEntries(
+        projects.map((directory) => [directory, allDirectoryStates[directory]?.sessionStatusByID ?? {}]),
+      ) as Record<string, Record<string, "busy" | "idle">>,
+    [allDirectoryStates, projects],
+  )
+  const unreadSessionMap = unreadByDirectory[decodedDirectory] ?? {}
   const showDevSessionTrace = import.meta.env.DEV
+  const leftSidebarMaxWidth =
+    typeof window === "undefined" ? SIDEBAR_DEFAULT_MAX_WIDTH : window.innerWidth * 0.3 + 64
 
   useEffect(() => {
     if (!decodedDirectory) return
@@ -306,12 +331,20 @@ function DirectoryChatPage() {
     }
   }
 
-  async function onSelectSession(nextSessionID: string) {
-    if (!decodedDirectory) return
-    if (!nextSessionID || nextSessionID === sessionID) return
+  async function onSelectSession(targetDirectory: string, nextSessionID?: string) {
+    if (!targetDirectory) return
+    if (!nextSessionID) {
+      if (targetDirectory !== decodedDirectory) {
+        onSwitchDirectory(targetDirectory)
+      }
+      return
+    }
     try {
-      await selectSession(decodedDirectory, nextSessionID)
-      clearUnread(decodedDirectory, nextSessionID)
+      await selectSession(targetDirectory, nextSessionID)
+      clearUnread(targetDirectory, nextSessionID)
+      if (targetDirectory !== decodedDirectory) {
+        onSwitchDirectory(targetDirectory)
+      }
     } catch {
       // Store already captures and displays errors.
     }
@@ -351,71 +384,57 @@ function DirectoryChatPage() {
     }
   }
 
-  function onRemoveProject(directory: string) {
-    const remaining = projects.filter((entry) => entry !== directory)
-    removeProject(directory)
-
-    if (directory !== decodedDirectory) return
-
-    if (remaining.length > 0) {
-      onSwitchDirectory(remaining[0])
-      return
-    }
-
-    navigate({ to: "/chat" })
-  }
-
-  async function onArchiveSession(targetSessionID: string) {
-    if (!decodedDirectory) return
+  async function onArchiveSession(targetDirectory: string, targetSessionID: string) {
+    if (!targetDirectory) return
     try {
       await updateSession({
-        directory: decodedDirectory,
+        directory: targetDirectory,
         sessionID: targetSessionID,
         archivedAt: Date.now(),
       })
-      clearDirectorySessionState(decodedDirectory, targetSessionID)
-      await loadSessions(decodedDirectory)
-      await loadPermissions(decodedDirectory)
+      clearDirectorySessionState(targetDirectory, targetSessionID)
+      await loadSessions(targetDirectory)
+      await loadPermissions(targetDirectory)
 
-      const activeSessionID = useChatStore.getState().directories[decodedDirectory]?.sessionID
+      const activeSessionID = useChatStore.getState().directories[targetDirectory]?.sessionID
       if (!activeSessionID) {
-        await startNewSession(decodedDirectory)
-        await loadPermissions(decodedDirectory)
+        await startNewSession(targetDirectory)
+        await loadPermissions(targetDirectory)
         return
       }
 
       if (activeSessionID !== targetSessionID) {
-        await loadMessages(decodedDirectory, activeSessionID)
-        clearUnread(decodedDirectory, activeSessionID)
+        await loadMessages(targetDirectory, activeSessionID)
+        clearUnread(targetDirectory, activeSessionID)
       }
     } catch {
       // action layers keep directory-level error state
     }
   }
 
-  async function onRenameSession(targetSessionID: string, title: string) {
-    if (!decodedDirectory) return
+  async function onRenameSession(targetDirectory: string, targetSessionID: string, title: string) {
+    if (!targetDirectory) return
     const trimmed = title.trim()
     if (!trimmed) return
     try {
       const updated = await updateSession({
-        directory: decodedDirectory,
+        directory: targetDirectory,
         sessionID: targetSessionID,
         title: trimmed,
       })
-      applySessionUpdated(decodedDirectory, updated)
+      applySessionUpdated(targetDirectory, updated)
     } catch {
       // action layers keep directory-level error state
     }
   }
 
-  function onToggleUnreadSession(targetSessionID: string, unread: boolean) {
-    if (!decodedDirectory) return
+  function onToggleUnreadSession(targetDirectory: string, targetSessionID: string, unread: boolean) {
+    if (!targetDirectory) return
     if (unread) {
-      markUnread(decodedDirectory, targetSessionID)
+      markUnread(targetDirectory, targetSessionID)
       return
     }
-    clearUnread(decodedDirectory, targetSessionID)
+    clearUnread(targetDirectory, targetSessionID)
   }
 
   function openCurriculumPanel() {
@@ -436,32 +455,45 @@ function DirectoryChatPage() {
     <div className="h-screen w-full overflow-hidden bg-card">
       <div className="h-full w-full flex min-w-0">
         {leftSidebarOpen ? (
-          <ChatLeftSidebar
-            directories={projects}
-            currentDirectory={decodedDirectory}
-            sessions={sessions}
-            activeSessionID={sessionID}
-            sessionStatusByID={sessionStatusByID}
-            pinnedSessionIDs={pinnedSessionIDs}
-            unreadSessionIDs={unreadSessionIDs}
-            onSelectDirectory={onSwitchDirectory}
-            onOpenDirectory={() => {
-              void onOpenProject()
-            }}
-            onNewSession={() => {
-              void onNewSession()
-            }}
-            onSelectSession={(targetSessionID) => {
-              void onSelectSession(targetSessionID)
-            }}
-            onTogglePin={(targetSessionID) => togglePinned(decodedDirectory, targetSessionID)}
-            onToggleUnread={onToggleUnreadSession}
-            onArchiveSession={onArchiveSession}
-            onRenameSession={onRenameSession}
-            onOpenCurriculum={openCurriculumPanel}
-            onOpenSettings={openSettingsPanel}
-            onCloseDirectory={() => onRemoveProject(decodedDirectory)}
-          />
+          <div
+            className="relative shrink-0 min-h-0"
+            style={{ width: `${Math.max(leftSidebarWidth, SIDEBAR_MIN_WIDTH)}px` }}
+          >
+            <ChatLeftSidebar
+              directories={projects}
+              currentDirectory={decodedDirectory}
+              sessionsByDirectory={sessionsByDirectory}
+              activeSessionID={sessionID}
+              sessionStatusByDirectory={sessionStatusByDirectory}
+              pinnedByDirectory={pinnedByDirectory}
+              unreadByDirectory={unreadByDirectory}
+              onOpenDirectory={() => {
+                void onOpenProject()
+              }}
+              onNewSession={() => {
+                void onNewSession()
+              }}
+              onSelectSession={(targetDirectory, targetSessionID) => {
+                void onSelectSession(targetDirectory, targetSessionID)
+              }}
+              onTogglePin={(targetDirectory, targetSessionID) => togglePinned(targetDirectory, targetSessionID)}
+              onToggleUnread={onToggleUnreadSession}
+              onArchiveSession={onArchiveSession}
+              onRenameSession={onRenameSession}
+              onOpenCurriculum={openCurriculumPanel}
+              onOpenSettings={openSettingsPanel}
+              className="w-full h-full"
+            />
+            <ResizeHandle
+              direction="horizontal"
+              size={leftSidebarWidth}
+              min={SIDEBAR_MIN_WIDTH}
+              max={leftSidebarMaxWidth}
+              collapseThreshold={SIDEBAR_MIN_WIDTH}
+              onResize={setLeftSidebarWidth}
+              onCollapse={() => setLeftSidebarOpen(false)}
+            />
+          </div>
         ) : null}
 
         <main className="flex-1 min-w-0 min-h-0 flex flex-col bg-background/20">
@@ -531,21 +563,23 @@ function DirectoryChatPage() {
           </header>
 
           <section ref={transcriptRef} onScroll={onTranscriptScroll} className="flex-1 min-h-0 overflow-y-auto">
-            <div className="mx-auto w-full max-w-[1080px] px-4 py-4 space-y-4">
+            <div className={`mx-auto w-full max-w-[1080px] px-4 py-4 space-y-4 ${messages.length === 0 && isReady ? 'h-full' : ''}`}>
               {!isReady ? (
                 <p className="text-sm text-muted-foreground">Loading notebook chat...</p>
               ) : messages.length === 0 ? (
-                <ChatEmptyState
-                  directoryLabel={getFilename(decodedDirectory)}
-                  onUsePrompt={setDraft}
-                  onOpenCurriculum={openCurriculumPanel}
-                />
+                <div className="h-full flex flex-col">
+                  <ChatEmptyState
+                    directoryLabel={getFilename(decodedDirectory)}
+                    onUsePrompt={setDraft}
+                    onOpenCurriculum={openCurriculumPanel}
+                  />
+                </div>
               ) : (
                 <ChatTranscript
                   messages={messages}
                   isBusy={isBusy}
                   onOpenSession={(targetSessionID) => {
-                    void onSelectSession(targetSessionID)
+                    void onSelectSession(decodedDirectory, targetSessionID)
                   }}
                 />
               )}
@@ -589,12 +623,28 @@ function DirectoryChatPage() {
         </main>
 
         {rightSidebarOpen ? (
-          <ChatRightSidebar
-            directory={decodedDirectory}
-            tab={rightSidebarTab}
-            onTabChange={setRightSidebarTab}
-            onClose={() => setRightSidebarOpen(false)}
-          />
+          <div
+            className="relative shrink-0 min-h-0"
+            style={{ width: `${Math.max(rightSidebarWidth, RIGHT_SIDEBAR_MIN_WIDTH)}px` }}
+          >
+            <ChatRightSidebar
+              directory={decodedDirectory}
+              tab={rightSidebarTab}
+              onTabChange={setRightSidebarTab}
+              onClose={() => setRightSidebarOpen(false)}
+              className="w-full h-full"
+            />
+            <ResizeHandle
+              direction="horizontal"
+              edge="start"
+              size={rightSidebarWidth}
+              min={RIGHT_SIDEBAR_MIN_WIDTH}
+              max={RIGHT_SIDEBAR_MAX_WIDTH}
+              collapseThreshold={RIGHT_SIDEBAR_COLLAPSE_THRESHOLD}
+              onResize={setRightSidebarWidth}
+              onCollapse={() => setRightSidebarOpen(false)}
+            />
+          </div>
         ) : null}
       </div>
     </div>

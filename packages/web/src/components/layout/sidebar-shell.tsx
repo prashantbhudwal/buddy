@@ -1,5 +1,6 @@
 import type { ReactNode } from "react"
 import { SidebarProject } from "./sidebar-project"
+import { sidebarExpanded } from "./sidebar-shell-helpers"
 
 type SidebarShellProps = {
   projects: string[]
@@ -12,6 +13,8 @@ type SidebarShellProps = {
 }
 
 export function SidebarShell(props: SidebarShellProps) {
+  const expanded = sidebarExpanded(false, props.sidebarOpen)
+
   return (
     <div className="h-screen w-full overflow-hidden bg-card flex flex-col md:flex-row">
       <SidebarProject
@@ -20,7 +23,7 @@ export function SidebarShell(props: SidebarShellProps) {
         onSelectProject={props.onSelectProject}
         onOpenProject={props.onOpenProject}
       />
-      {props.sidebarOpen ? props.panel : null}
+      {expanded ? props.panel : null}
       {props.content}
     </div>
   )

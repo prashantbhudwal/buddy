@@ -15,12 +15,12 @@ type ChatEmptyStateProps = {
 
 export function ChatEmptyState(props: ChatEmptyStateProps) {
   return (
-    <div className="rounded-xl border border-border/70 bg-card/60 p-6 md:p-8">
+    <div className="flex flex-1 items-center justify-center rounded-xl border border-border/70 bg-card/60 p-6 md:p-8">
       <div className="mx-auto flex max-w-xl flex-col items-center text-center">
         <div className="mb-3 inline-flex size-10 items-center justify-center rounded-full border border-border/70 bg-background/70 text-muted-foreground">
           <SparklesIcon className="size-4" />
         </div>
-        <h2 className="text-xl font-semibold">Let&apos;s build {props.directoryLabel}</h2>
+        <h2 className="text-xl font-semibold">Let&apos;s learn {props.directoryLabel}</h2>
         <p className="mt-2 text-sm text-muted-foreground">
           Ask Buddy anything, or start with a focused prompt from below.
         </p>

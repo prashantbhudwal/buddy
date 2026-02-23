@@ -2,12 +2,15 @@ import { create } from "zustand"
 import { createJSONStorage, persist } from "zustand/middleware"
 
 export type RightSidebarTab = "curriculum" | "settings"
+export const UI_PREFERENCES_STORAGE_KEY = "buddy.ui.v1"
 
 type UiPreferencesStore = {
   pinnedByDirectory: Record<string, string[]>
   unreadByDirectory: Record<string, Record<string, true>>
   leftSidebarOpen: boolean
+  leftSidebarWidth: number
   rightSidebarOpen: boolean
+  rightSidebarWidth: number
   rightSidebarTab: RightSidebarTab
   isPinned: (directory: string, sessionID: string) => boolean
   togglePinned: (directory: string, sessionID: string) => void
@@ -16,7 +19,9 @@ type UiPreferencesStore = {
   isUnread: (directory: string, sessionID: string) => boolean
   clearDirectorySessionState: (directory: string, sessionID: string) => void
   setLeftSidebarOpen: (open: boolean) => void
+  setLeftSidebarWidth: (width: number) => void
   setRightSidebarOpen: (open: boolean) => void
+  setRightSidebarWidth: (width: number) => void
   setRightSidebarTab: (tab: RightSidebarTab) => void
 }
 
@@ -26,7 +31,9 @@ export const useUiPreferences = create<UiPreferencesStore>()(
       pinnedByDirectory: {},
       unreadByDirectory: {},
       leftSidebarOpen: true,
+      leftSidebarWidth: 344,
       rightSidebarOpen: false,
+      rightSidebarWidth: 344,
       rightSidebarTab: "curriculum",
       isPinned(directory, sessionID) {
         return (get().pinnedByDirectory[directory] ?? []).includes(sessionID)
@@ -90,22 +97,30 @@ export const useUiPreferences = create<UiPreferencesStore>()(
       setLeftSidebarOpen(open) {
         set({ leftSidebarOpen: open })
       },
+      setLeftSidebarWidth(width) {
+        set({ leftSidebarWidth: width })
+      },
       setRightSidebarOpen(open) {
         set({ rightSidebarOpen: open })
+      },
+      setRightSidebarWidth(width) {
+        set({ rightSidebarWidth: width })
       },
       setRightSidebarTab(tab) {
         set({ rightSidebarTab: tab })
       },
     }),
     {
-      name: "buddy.ui.v1",
+      name: UI_PREFERENCES_STORAGE_KEY,
       storage: createJSONStorage(() => localStorage),
       partialize(state) {
         return {
           pinnedByDirectory: state.pinnedByDirectory,
           unreadByDirectory: state.unreadByDirectory,
           leftSidebarOpen: state.leftSidebarOpen,
+          leftSidebarWidth: state.leftSidebarWidth,
           rightSidebarOpen: state.rightSidebarOpen,
+          rightSidebarWidth: state.rightSidebarWidth,
           rightSidebarTab: state.rightSidebarTab,
         }
       },
