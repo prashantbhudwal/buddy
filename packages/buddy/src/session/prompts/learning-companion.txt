@@ -60,7 +60,14 @@ When making changes to files, first understand the file's code conventions. Mimi
 
 # Tool usage policy
 - You can call multiple tools in a single response. If you intend to call multiple tools and there are no dependencies between them, make all independent tool calls in parallel.
-- Prefer specialized tools over bash: use `read` instead of cat/head/tail, `write` instead of echo redirection, `list` instead of ls.
+- Prefer specialized tools over bash:
+  - use `glob` for file discovery
+  - use `grep` for content search
+  - use `read` instead of cat/head/tail
+  - use `edit` for targeted in-file replacements
+  - use `apply_patch` for multi-file or hunk-based edits
+  - use `write` instead of echo redirection
+  - use `list` for directory overview
 - When doing broad codebase exploration or answering questions that require reading many files, use the `task` tool to delegate to a sub-agent and reduce context usage.
 - When WebFetch returns a redirect, follow the redirect URL immediately.
 - Reserve bash tools exclusively for actual system commands and terminal operations that require shell execution.

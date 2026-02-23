@@ -1,7 +1,12 @@
 import type { Agent } from "../agent/agent.js"
 import { PermissionNext } from "../permission/next.js"
+import { ApplyPatchTool } from "./apply_patch.js"
+import { BashTool } from "./bash.js"
 import { CurriculumReadTool } from "./curriculum-read.js"
 import { CurriculumUpdateTool } from "./curriculum-update.js"
+import { EditTool } from "./edit.js"
+import { GlobTool } from "./glob.js"
+import { GrepTool } from "./grep.js"
 import { InvalidTool } from "./invalid.js"
 import { ListTool } from "./list.js"
 import { ReadTool } from "./read.js"
@@ -12,8 +17,13 @@ import { WriteTool } from "./write.js"
 
 const builtins: Tool.Info[] = [
   InvalidTool,
+  BashTool,
   ReadTool,
   ListTool,
+  GlobTool,
+  GrepTool,
+  EditTool,
+  ApplyPatchTool,
   WriteTool,
   WebFetchTool,
   TaskTool,
