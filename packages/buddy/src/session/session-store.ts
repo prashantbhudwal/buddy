@@ -23,7 +23,7 @@ function clearProjectAbortMapWhenEmpty(projectID: string, map: Map<string, Abort
 }
 
 export namespace SessionStore {
-  export function list(input?: { limit?: number; directory?: string }) {
+  export function list(input?: { limit?: number; directory?: string; archived?: boolean }) {
     return SessionStorage.list(input)
   }
 
@@ -49,6 +49,10 @@ export namespace SessionStore {
 
   export function setTitle(sessionID: string, title: string) {
     return SessionStorage.setTitle(sessionID, title)
+  }
+
+  export function setArchived(sessionID: string, archived?: number) {
+    return SessionStorage.setArchived(sessionID, archived)
   }
 
   export function setPermission(

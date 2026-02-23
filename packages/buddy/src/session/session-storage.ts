@@ -1,4 +1,4 @@
-import { and, asc, desc, eq } from "../storage/db.js"
+import { and, asc, desc, eq, isNull } from "../storage/db.js"
 import { Database } from "../storage/db.js"
 import { Instance } from "../project/instance.js"
 import { newSessionID } from "./id.js"
@@ -28,6 +28,7 @@ function toSessionInfo(row: typeof SessionTable.$inferSelect): SessionInfo.Info 
     time: {
       created: row.time_created,
       updated: row.time_updated,
+      archived: row.time_archived ?? undefined,
     },
   }
 }
@@ -88,10 +89,13 @@ function assertMessageRow(sessionID: string, messageID: string) {
 }
 
 export namespace SessionStorage {
-  export function list(input?: { limit?: number; directory?: string }) {
+  export function list(input?: { limit?: number; directory?: string; archived?: boolean }) {
     const filters = [eq(SessionTable.project_id, Instance.project.id)]
     if (input?.directory) {
       filters.push(eq(SessionTable.directory, input.directory))
+    }
+    if (!input?.archived) {
+      filters.push(isNull(SessionTable.time_archived))
     }
 
     const rows = Database.use((db) => {
@@ -231,6 +235,27 @@ export namespace SessionStorage {
     if (!row) {
       throw new Error(`Session not found: ${sessionID}`)
     }
+    return toSessionInfo(row)
+  }
+
+  export function setArchived(sessionID: string, archived?: number) {
+    const now = Date.now()
+    const row = Database.use((db) =>
+      db
+        .update(SessionTable)
+        .set({
+          time_archived: archived ?? null,
+          time_updated: now,
+        })
+        .where(and(eq(SessionTable.id, sessionID), eq(SessionTable.project_id, Instance.project.id)))
+        .returning()
+        .get(),
+    )
+
+    if (!row) {
+      throw new Error(`Session not found: ${sessionID}`)
+    }
+
     return toSessionInfo(row)
   }
 

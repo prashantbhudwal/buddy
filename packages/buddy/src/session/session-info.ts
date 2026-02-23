@@ -8,6 +8,7 @@ export namespace SessionInfo {
     time: z.object({
       created: z.number(),
       updated: z.number(),
+      archived: z.number().optional(),
     }),
   })
 
@@ -35,4 +36,3 @@ export namespace SessionInfo {
     ),
   }
 }
-

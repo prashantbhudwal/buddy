@@ -1,6 +1,7 @@
 import { Hono } from "hono"
 import { describeRoute, resolver, validator } from "hono-openapi"
 import z from "zod"
+import { Agent } from "../agent/agent.js"
 import { Config, JsonError, InvalidError } from "../config/config.js"
 
 const ProviderModel = z.object({
@@ -12,6 +13,13 @@ const ProviderInfo = z.object({
   id: z.string(),
   name: z.string(),
   models: z.array(ProviderModel),
+})
+
+const AgentInfo = z.object({
+  name: z.string(),
+  description: z.string().optional(),
+  mode: z.enum(["subagent", "primary", "all"]),
+  hidden: z.boolean().optional(),
 })
 
 function parseModel(model: string) {
@@ -166,5 +174,34 @@ export const ConfigRoutes = () =>
       async (c) => {
         const config = await Config.get()
         return c.json(providerPayload(config))
+      },
+    )
+    .get(
+      "/agents",
+      describeRoute({
+        summary: "List agents",
+        description: "List available agents for the current project context.",
+        operationId: "config.agents",
+        responses: {
+          200: {
+            description: "Agent list",
+            content: {
+              "application/json": {
+                schema: resolver(z.array(AgentInfo)),
+              },
+            },
+          },
+        },
+      }),
+      async (c) => {
+        const agents = await Agent.list()
+        return c.json(
+          agents.map((agent) => ({
+            name: agent.name,
+            description: agent.description,
+            mode: agent.mode,
+            hidden: agent.hidden,
+          })),
+        )
       },
     )

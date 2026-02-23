@@ -37,6 +37,7 @@ export const SessionRoutes = () =>
         z.object({
           limit: z.coerce.number().int().min(1).max(200).optional(),
           directory: z.string().optional(),
+          archived: z.enum(["true", "false"]).optional(),
         }),
       ),
       async (c) => {
@@ -45,6 +46,7 @@ export const SessionRoutes = () =>
           SessionStore.list({
             limit: query.limit,
             directory: query.directory ? resolveDirectory(query.directory) : undefined,
+            archived: query.archived === "true" ? true : undefined,
           }),
         )
       },
@@ -112,6 +114,72 @@ export const SessionRoutes = () =>
           logSession("route.session.get.not_found", { sessionID })
           return c.json({ error: "Session not found" }, 404)
         }
+        return c.json(info)
+      },
+    )
+    .patch(
+      "/:sessionID",
+      describeRoute({
+        summary: "Update session",
+        description: "Update mutable session properties.",
+        operationId: "session.update",
+        responses: {
+          200: {
+            description: "Session updated",
+            content: {
+              "application/json": {
+                schema: resolver(SessionInfo.Info),
+              },
+            },
+          },
+          404: {
+            description: "Session not found",
+            content: {
+              "application/json": {
+                schema: resolver(ErrorResponse),
+              },
+            },
+          },
+        },
+      }),
+      validator(
+        "param",
+        z.object({
+          sessionID: z.string(),
+        }),
+      ),
+      validator(
+        "json",
+        z.object({
+          title: z.string().optional(),
+          time: z
+            .object({
+              archived: z.number().optional(),
+            })
+            .optional(),
+        }),
+      ),
+      async (c) => {
+        const sessionID = c.req.valid("param").sessionID
+        const updates = c.req.valid("json")
+        logSession("route.session.update", { sessionID })
+
+        let info = SessionStore.get(sessionID)
+        if (!info) {
+          logSession("route.session.update.not_found", { sessionID })
+          return c.json({ error: "Session not found" }, 404)
+        }
+
+        if (updates.title !== undefined) {
+          info = SessionStore.setTitle(sessionID, updates.title)
+          await Bus.publish(SessionInfo.Event.Updated, { info })
+        }
+
+        if (updates.time?.archived !== undefined) {
+          info = SessionStore.setArchived(sessionID, updates.time.archived)
+          await Bus.publish(SessionInfo.Event.Updated, { info })
+        }
+
         return c.json(info)
       },
     )
