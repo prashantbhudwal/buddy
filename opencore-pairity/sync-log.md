@@ -188,3 +188,44 @@ Append-only log for parity runs and parity contract changes.
   - synced
 - Next step:
   - continue parity-core file syncing to reduce `diff-pairs` drift and move `check:parity` toward green.
+
+## 2026-02-23 - Reset + message/provider parity foundation for token context
+
+- Type: parity-sync
+- Buddy refs: working tree
+- OpenCode refs:
+  - baseline HEAD: `206d81e02c5953f6652fdadfc69f5826943da08c`
+  - referenced counterparts:
+    - `packages/opencode/src/session/message-v2.ts`
+    - `packages/opencode/src/provider/models.ts`
+    - `packages/opencode/src/provider/provider.ts`
+    - `packages/opencode/src/server/routes/config.ts`
+- Pairs touched:
+  - `packages/buddy/src/index.ts` -> `packages/opencode/src/index.ts`
+  - `packages/buddy/src/session/message-v2/index.ts` -> `packages/opencode/src/session/message-v2.ts`
+  - `packages/buddy/src/routes/config.ts` -> `packages/opencode/src/server/routes/config.ts`
+  - `packages/buddy/src/session/prompt.ts` -> `packages/opencode/src/session/prompt.ts`
+  - `packages/buddy/src/session/processor.ts` -> `packages/opencode/src/session/processor.ts`
+  - `packages/buddy/src/session/llm.ts` -> `packages/opencode/src/session/llm.ts`
+  - `packages/buddy/src/provider/models.ts` -> `packages/opencode/src/provider/models.ts` (new mapping)
+  - `packages/buddy/src/provider/provider.ts` -> `packages/opencode/src/provider/provider.ts` (new mapping)
+- Summary:
+  - Added one-time destructive parity reset on backend boot with marker + `BUDDY_SKIP_PARITY_RESET=1`.
+  - Tightened Buddy `message-v2` schema to OpenCode-style assistant envelope/tool-state strictness and structured error objects.
+  - Added models.dev-backed provider metadata layer and switched config providers endpoint to metadata-rich payload with `limit.context`.
+  - Replaced hardcoded overflow-context usage in runtime with model-resolved limits and threaded token context data into web transcript meta (`used` + `remaining` fallback).
+  - Expanded parity mapping to include provider model registry + provider lookup files.
+- Validation:
+  - baseline reports:
+    - `./opencore-pairity/scripts/diff-pairs.sh --changed-only` -> `total=48 match=1 diff=47 missing=0` (exit 1 by design)
+    - `./opencore-pairity/scripts/screen-coverage.sh` -> `Exact summary total=40 mapped=40 unmapped=0`, `Rename summary total=8 unmapped=0`
+    - `./opencore-pairity/scripts/upstream-history.sh --max-count 8` -> success
+  - checks after implementation:
+    - `bun run typecheck -- --filter=@buddy/backend` -> pass
+    - `bun run typecheck -- --filter=@buddy/web` -> pass
+    - `bun run test:parity` -> pass
+    - `./opencore-pairity/scripts/test-coverage.sh` -> pass (`rows=77 ported=41 na=36 deferred=0`)
+- Decision:
+  - partial-sync
+- Next step:
+  - complete the remaining mapped P0/P1 runtime/tool/bus parity ports to reduce `diff-pairs` drift while keeping new message/provider contracts stable.

@@ -33,6 +33,8 @@ packages/buddy/src/routes/config.ts	packages/opencode/src/server/routes/config.t
 packages/buddy/src/routes/permission.ts	packages/opencode/src/server/routes/permission.ts	P2	permission reply/list route semantics
 packages/buddy/src/config/config.ts	packages/opencode/src/config/config.ts	P1	config precedence and load/update behavior
 packages/buddy/src/config/markdown.ts	packages/opencode/src/config/markdown.ts	P2	@-reference parsing behavior for prompt inputs
+packages/buddy/src/provider/models.ts	packages/opencode/src/provider/models.ts	P2	models.dev registry sync and context limit source of truth
+packages/buddy/src/provider/provider.ts	packages/opencode/src/provider/provider.ts	P2	provider/model metadata lookup for runtime + UI token context
 packages/buddy/src/session/system-prompt.ts	packages/opencode/src/session/system.ts	P1	system prompt/environment layering (Buddy adapted naming)
 packages/buddy/src/storage/global.ts	packages/opencode/src/global/index.ts	P2	global path/bootstrap behavior
 packages/buddy/src/session/message-v2/index.ts	packages/opencode/src/session/message-v2.ts	P2	message-v2 parity anchor (Buddy split into multiple files)
