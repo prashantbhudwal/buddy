@@ -18,12 +18,31 @@ type MessageModel = {
   modelID: string
 }
 
+export type MessageError = {
+  name: string
+  message: string
+  [key: string]: unknown
+}
+
+export type MessageOutputFormat =
+  | {
+      type: "text"
+    }
+  | {
+      type: "json_schema"
+      schema: Record<string, unknown>
+      retryCount?: number
+    }
+
 export type UserMessageInfo = {
   id: string
   sessionID: string
   role: "user"
-  agent?: string
-  model?: MessageModel
+  agent: string
+  model: MessageModel
+  variant?: string
+  tools?: Record<string, boolean>
+  format?: MessageOutputFormat
   system?: string
   time: MessageTime
 }
@@ -32,11 +51,22 @@ export type AssistantMessageInfo = {
   id: string
   sessionID: string
   role: "assistant"
-  agent?: string
+  parentID: string
+  providerID: string
+  modelID: string
+  mode: string
+  agent: string
+  path: {
+    cwd: string
+    root: string
+  }
+  variant?: string
+  structured?: unknown
+  summary?: boolean
   time: MessageTime
-  error?: string
+  error?: MessageError
   finish?: string
-  tokens?: {
+  tokens: {
     total?: number
     input: number
     output: number
@@ -46,7 +76,7 @@ export type AssistantMessageInfo = {
       write: number
     }
   }
-  cost?: number
+  cost: number
 }
 
 export type MessageInfo = UserMessageInfo | AssistantMessageInfo
@@ -85,6 +115,43 @@ export type PermissionRequest = {
   }
 }
 
+export type ProviderModelInfo = {
+  id: string
+  providerID: string
+  name: string
+  family?: string
+  api: {
+    id: string
+    npm?: string
+  }
+  limit: {
+    context: number
+    input?: number
+    output: number
+  }
+  modalities?: {
+    input: string[]
+    output: string[]
+  }
+  reasoning: boolean
+  options: Record<string, unknown>
+  variants?: Record<string, Record<string, unknown>>
+}
+
+export type ProviderInfo = {
+  id: string
+  name: string
+  npm?: string
+  api?: string
+  env: string[]
+  models: ProviderModelInfo[]
+}
+
+export type ConfigProvidersResponse = {
+  providers: ProviderInfo[]
+  default: Record<string, string>
+}
+
 export type DirectoryChatState = {
   sessionID?: string
   sessionTitle: string
@@ -92,6 +159,8 @@ export type DirectoryChatState = {
   sessionStatusByID: Record<string, "busy" | "idle">
   messages: MessageWithParts[]
   pendingPermissions: PermissionRequest[]
+  providers: ProviderInfo[]
+  providerDefault: Record<string, string>
   isBusy: boolean
   isReady: boolean
   error?: string

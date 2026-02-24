@@ -1,6 +1,11 @@
 import { createBuddyClient } from "@buddy/sdk"
 import { useChatStore } from "./chat-store"
-import type { MessageWithParts, PermissionRequest, SessionInfo } from "./chat-types"
+import type {
+  ConfigProvidersResponse,
+  MessageWithParts,
+  PermissionRequest,
+  SessionInfo,
+} from "./chat-types"
 
 const POST_PROMPT_RESYNC_INTERVAL_MS = 1000
 const POST_PROMPT_RESYNC_ATTEMPTS = 600
@@ -26,20 +31,6 @@ function stringifyError(error: unknown) {
   } catch {
     return String(error)
   }
-}
-
-export type ProviderInfo = {
-  id: string
-  name: string
-  models: Array<{
-    id: string
-    name?: string
-  }>
-}
-
-export type ConfigProvidersResponse = {
-  providers: ProviderInfo[]
-  default: Record<string, string>
 }
 
 export type AgentConfigOption = {
@@ -134,6 +125,19 @@ export async function loadPermissions(directory: string) {
   }
 }
 
+export async function loadProviders(directory: string) {
+  const store = useChatStore.getState()
+  try {
+    const providers = await requestJson<ConfigProvidersResponse>(directory, "/api/config/providers")
+    store.setProviders(directory, providers)
+    store.setDirectoryError(directory, undefined)
+    return providers
+  } catch (error) {
+    store.setDirectoryError(directory, stringifyError(error))
+    throw error
+  }
+}
+
 async function createSession(directory: string) {
   const store = useChatStore.getState()
   const sdk = clientFor(directory)
@@ -179,6 +183,7 @@ export async function ensureDirectorySession(directory: string) {
 
     await loadMessages(directory, info.id)
     await loadPermissions(directory)
+    await loadProviders(directory)
     store.setDirectoryReady(directory, true)
     return info
   } catch (error) {
@@ -276,6 +281,7 @@ export async function resyncDirectory(directory: string) {
   const sessionID = store.directories[directory]?.sessionID
   await loadSessions(directory)
   await loadPermissions(directory)
+  await loadProviders(directory)
   if (!sessionID) return
   await loadMessages(directory, sessionID)
 }

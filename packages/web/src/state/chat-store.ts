@@ -1,6 +1,7 @@
 import { create } from "zustand"
 import { createJSONStorage, persist } from "zustand/middleware"
 import type {
+  ConfigProvidersResponse,
   DirectoryChatState,
   MessageInfo,
   MessagePart,
@@ -37,6 +38,7 @@ type ChatStore = {
     input: { sessionID: string; messageID: string; partID: string; field: string; delta: string },
   ) => void
   setPendingPermissions: (directory: string, requests: PermissionRequest[]) => void
+  setProviders: (directory: string, input: ConfigProvidersResponse) => void
   applyPermissionAsked: (directory: string, request: PermissionRequest) => void
   applyPermissionReplied: (directory: string, requestID: string) => void
   setStreamStatus: (status: StreamStatus) => void
@@ -51,6 +53,8 @@ function emptyDirectoryState(): DirectoryChatState {
     sessionStatusByID: {},
     messages: [],
     pendingPermissions: [],
+    providers: [],
+    providerDefault: {},
     isBusy: false,
     isReady: false,
   }
@@ -405,6 +409,18 @@ export const useChatStore = create<ChatStore>()(
             [directory]: {
               ...ensureDirectoryState(state as ChatStore, directory),
               pendingPermissions: requests,
+            },
+          },
+        }))
+      },
+      setProviders(directory, input) {
+        set((state) => ({
+          directories: {
+            ...state.directories,
+            [directory]: {
+              ...ensureDirectoryState(state as ChatStore, directory),
+              providers: input.providers,
+              providerDefault: input.default,
             },
           },
         }))
