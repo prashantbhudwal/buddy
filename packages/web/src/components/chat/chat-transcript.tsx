@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import { Markdown } from "@/components/Markdown"
-import type { MessageInfo, MessagePart, MessageWithParts } from "@/state/chat-types"
+import { computeTokenContextMetrics } from "@/state/context-metrics"
+import type { MessageInfo, MessagePart, MessageWithParts, ProviderInfo } from "@/state/chat-types"
 import "./chat-transcript.css"
 
 type ChatTranscriptProps = {
   messages: MessageWithParts[]
+  providers?: ProviderInfo[]
   isBusy?: boolean
   onOpenSession?: (sessionID: string) => void
 }
@@ -125,10 +127,25 @@ function titleCase(value?: string) {
 }
 
 function modelLabel(info: MessageInfo) {
+  if ("modelID" in info && info.modelID) {
+    return info.modelID
+  }
   if ("model" in info && info.model?.modelID) {
     return info.model.modelID
   }
   return ""
+}
+
+function tokenContextLabel(info?: MessageInfo, providers: ProviderInfo[] = []) {
+  if (!info || info.role !== "assistant") return ""
+  const metrics = computeTokenContextMetrics({
+    assistant: info,
+    providers,
+  })
+  if (typeof metrics.remaining === "number") {
+    return `${metrics.used.toLocaleString()} used · ${metrics.remaining.toLocaleString()} remaining`
+  }
+  return `${metrics.used.toLocaleString()} used`
 }
 
 function useThrottledText(value: string) {
@@ -785,6 +802,7 @@ function AssistantPartRenderer(props: {
 }
 
 export function ChatTranscript(props: ChatTranscriptProps) {
+  const providers = props.providers ?? []
   const turns = useMemo(() => buildTurns(props.messages), [props.messages])
 
   return (
@@ -816,9 +834,11 @@ export function ChatTranscript(props: ChatTranscriptProps) {
         const assistantMetaText = (() => {
           const info = assistantMessages.at(-1)?.info
           if (!info) return ""
+          const tokenContext = tokenContextLabel(info, providers)
           return [
             titleCase(info.agent),
             modelLabel(info),
+            tokenContext,
             formatDuration(turnDurationMs),
             assistantAborted ? "Interrupted" : "",
           ]

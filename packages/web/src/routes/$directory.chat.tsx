@@ -2,6 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router"
 import { useEffect, useMemo, useRef, useState, type UIEvent } from "react"
 import { Button } from "@buddy/ui"
 import { ChatEmptyState } from "@/components/chat/chat-empty-state"
+import { SessionContextUsage } from "@/components/chat/session-context-usage"
 import { ChatTranscript } from "@/components/chat/chat-transcript"
 import { PermissionDock } from "@/components/chat/permission-dock"
 import { ChatLeftSidebar } from "@/components/layout/chat-left-sidebar"
@@ -152,6 +153,7 @@ function DirectoryChatPage() {
   const sessionTitle =
     sessions.find((session) => session.id === sessionID)?.title ?? directoryState?.sessionTitle ?? "New chat"
   const messages = directoryState?.messages ?? []
+  const providers = directoryState?.providers ?? []
   const isBusy = directoryState?.isBusy ?? false
   const isReady = directoryState?.isReady ?? false
   const error = directoryState?.error
@@ -521,6 +523,7 @@ function DirectoryChatPage() {
               </div>
 
               <div className="flex items-center gap-1.5">
+                <SessionContextUsage messages={messages} providers={providers} />
                 <Button variant="ghost" size="icon-xs" onClick={openCurriculumPanel} title="Open curriculum">
                   <BookOpenIcon className="size-3.5" />
                 </Button>
@@ -577,6 +580,7 @@ function DirectoryChatPage() {
               ) : (
                 <ChatTranscript
                   messages={messages}
+                  providers={providers}
                   isBusy={isBusy}
                   onOpenSession={(targetSessionID) => {
                     void onSelectSession(decodedDirectory, targetSessionID)
