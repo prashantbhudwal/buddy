@@ -10,6 +10,7 @@
     "start": "bun --env-file=../../.env run src/index.ts",
     "test": "bun test test",
     "test:parity": "bun test test/parity",
+    "format": "echo 'Formatting code...' && bun run --prettier --write src/**/*.ts",
     "db": "bun drizzle-kit"
   },
   "dependencies": {
