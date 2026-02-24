@@ -86,32 +86,34 @@ export namespace SessionPrompt {
     }),
   ])
 
-  export const PromptInput = z.object({
-    sessionID: z.string(),
-    messageID: z.string().optional(),
-    content: z.string().default(""),
-    agent: z.string().optional(),
-    noReply: z.boolean().optional(),
-    tools: z.record(z.string(), z.boolean()).optional(),
-    format: Format.optional(),
-    system: z.string().optional(),
-    variant: z.string().optional(),
-    parts: z.array(PromptPartInput).optional(),
-    model: z
-      .object({
-        providerID: z.string(),
-        modelID: z.string(),
-      })
-      .optional(),
-  }).superRefine((value, ctx) => {
-    if (value.content.trim().length > 0) return
-    if (value.parts && value.parts.length > 0) return
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      message: "content or parts must be provided",
-      path: ["content"],
+  export const PromptInput = z
+    .object({
+      sessionID: z.string(),
+      messageID: z.string().optional(),
+      content: z.string().default(""),
+      agent: z.string().optional(),
+      noReply: z.boolean().optional(),
+      tools: z.record(z.string(), z.boolean()).optional(),
+      format: Format.optional(),
+      system: z.string().optional(),
+      variant: z.string().optional(),
+      parts: z.array(PromptPartInput).optional(),
+      model: z
+        .object({
+          providerID: z.string(),
+          modelID: z.string(),
+        })
+        .optional(),
     })
-  })
+    .superRefine((value, ctx) => {
+      if (value.content.trim().length > 0) return
+      if (value.parts && value.parts.length > 0) return
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "content or parts must be provided",
+        path: ["content"],
+      })
+    })
 
   async function publishMessage(message: MessageWithParts) {
     await Bus.publish(MessageEvents.Updated, { info: message.info })

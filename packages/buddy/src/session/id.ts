@@ -15,4 +15,3 @@ export function newMessageID() {
 export function newPartID() {
   return next("part")
 }
-

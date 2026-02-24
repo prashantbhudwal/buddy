@@ -33,10 +33,7 @@ function containsPath(basePath: string, targetPath: string) {
   return relative === "" || (!relative.startsWith("..") && !path.isAbsolute(relative))
 }
 
-async function resolveContext(input: {
-  directory: string
-  init?: () => Promise<void>
-}) {
+async function resolveContext(input: { directory: string; init?: () => Promise<void> }) {
   const normalized = normalizeDirectory(input.directory)
   let existing = cache.get(normalized)
   if (!existing) {
@@ -59,11 +56,7 @@ async function resolveContext(input: {
 }
 
 export const Instance = {
-  async provide<T>(input: {
-    directory: string
-    init?: () => Promise<void>
-    fn: () => Promise<T> | T
-  }) {
+  async provide<T>(input: { directory: string; init?: () => Promise<void>; fn: () => Promise<T> | T }) {
     const current = await resolveContext(input)
     return context.run(current, input.fn)
   },
@@ -94,7 +87,7 @@ export const Instance = {
     }
   },
   dispose(directory?: string) {
-    const normalized = normalizeDirectory(directory ?? (context.getStore()?.directory ?? process.cwd()))
+    const normalized = normalizeDirectory(directory ?? context.getStore()?.directory ?? process.cwd())
     stateByDirectory.delete(normalized)
     cache.delete(normalized)
   },

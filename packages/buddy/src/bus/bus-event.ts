@@ -6,10 +6,7 @@ export namespace BusEvent {
 
   const registry = new Map<string, Definition>()
 
-  export function define<Type extends string, Properties extends ZodType>(
-    type: Type,
-    properties: Properties,
-  ) {
+  export function define<Type extends string, Properties extends ZodType>(type: Type, properties: Properties) {
     const result = {
       type,
       properties,

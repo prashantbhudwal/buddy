@@ -23,8 +23,12 @@ function buildDiffPreview(oldFragment: string, newFragment: string) {
   const lines = [
     "--- before",
     "+++ after",
-    ...normalizeLineEndings(oldFragment).split("\n").map((line) => `-${line}`),
-    ...normalizeLineEndings(newFragment).split("\n").map((line) => `+${line}`),
+    ...normalizeLineEndings(oldFragment)
+      .split("\n")
+      .map((line) => `-${line}`),
+    ...normalizeLineEndings(newFragment)
+      .split("\n")
+      .map((line) => `+${line}`),
   ]
 
   return lines.join("\n")

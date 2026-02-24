@@ -9,12 +9,7 @@ function withFallback(value: string | undefined, fallback: string) {
   return value ?? fallback
 }
 
-function buildPaths(input: {
-  data: string
-  cache: string
-  config: string
-  state: string
-}) {
+function buildPaths(input: { data: string; cache: string; config: string; state: string }) {
   return {
     data: input.data,
     cache: input.cache,
@@ -31,8 +26,7 @@ const preferred = buildPaths({
       path.join(withFallback(xdgData, path.join(os.homedir(), ".local", "share")), APP_NAME),
   ),
   cache: path.resolve(
-    process.env.BUDDY_CACHE_DIR ??
-      path.join(withFallback(xdgCache, path.join(os.homedir(), ".cache")), APP_NAME),
+    process.env.BUDDY_CACHE_DIR ?? path.join(withFallback(xdgCache, path.join(os.homedir(), ".cache")), APP_NAME),
   ),
   config: path.resolve(
     process.env.BUDDY_GLOBAL_CONFIG_DIR ??

@@ -8,4 +8,3 @@ export const GlobalBus = new EventEmitter<{
     },
   ]
 }>()
-

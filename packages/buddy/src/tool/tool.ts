@@ -39,9 +39,7 @@ export namespace Tool {
 
   export interface Info<Parameters extends z.ZodType = z.ZodType, M extends Metadata = Metadata> {
     id: string
-    init: (
-      ctx?: InitContext,
-    ) => Promise<{
+    init: (ctx?: InitContext) => Promise<{
       description: string
       parameters: Parameters
       execute(

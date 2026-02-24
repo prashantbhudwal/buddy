@@ -4,7 +4,13 @@ import os from "node:os"
 import path from "node:path"
 import { pathToFileURL } from "node:url"
 import z from "zod"
-import { applyEdits, modify, parse as parseJsonc, printParseErrorCode, type ParseError as JsoncParseError } from "jsonc-parser"
+import {
+  applyEdits,
+  modify,
+  parse as parseJsonc,
+  printParseErrorCode,
+  type ParseError as JsoncParseError,
+} from "jsonc-parser"
 import { mergeDeep, unique } from "remeda"
 import { GlobalBus } from "../bus/global.js"
 import { Flag } from "../flag/flag.js"
@@ -662,7 +668,10 @@ export namespace Config {
           const err = error as { code?: string }
           const base = `bad file reference: \"${match}\"`
           if (err.code === "ENOENT") {
-            throw new InvalidError({ path: source, message: `${base} ${resolvedPath} does not exist` }, { cause: error })
+            throw new InvalidError(
+              { path: source, message: `${base} ${resolvedPath} does not exist` },
+              { cause: error },
+            )
           }
           throw new InvalidError({ path: source, message: base }, { cause: error })
         })

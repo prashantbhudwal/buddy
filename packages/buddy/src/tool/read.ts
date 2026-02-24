@@ -55,13 +55,7 @@ function formatFileOutput(input: {
     return output
   }
 
-  return [
-    output,
-    "",
-    "<system-reminder>",
-    input.instructions.join("\n\n"),
-    "</system-reminder>",
-  ].join("\n")
+  return [output, "", "<system-reminder>", input.instructions.join("\n\n"), "</system-reminder>"].join("\n")
 }
 
 export const ReadTool = Tool.define("read", {

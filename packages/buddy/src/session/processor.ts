@@ -168,11 +168,7 @@ async function publishMessage(info: AssistantMessage) {
   await Bus.publish(MessageEvents.Updated, { info })
 }
 
-async function finalizeInFlightToolParts(input: {
-  sessionID: string
-  messageID: string
-  reason: string
-}) {
+async function finalizeInFlightToolParts(input: { sessionID: string; messageID: string; reason: string }) {
   const message = SessionStore.getMessageWithParts(input.sessionID, input.messageID)
   if (!message) return
 

@@ -4,12 +4,7 @@ import { Bus } from "../bus/index.js"
 import { PermissionNext } from "../permission/next.js"
 import { Provider } from "../provider/provider.js"
 import { ToolRegistry } from "../tool/registry.js"
-import {
-  loadBehavior,
-  loadCurriculumContext,
-  loadEnvironment,
-  loadMaxStepsPrompt,
-} from "./system-prompt.js"
+import { loadBehavior, loadCurriculumContext, loadEnvironment, loadMaxStepsPrompt } from "./system-prompt.js"
 import { loadInstructions } from "./instruction.js"
 import { kimiModel } from "./kimi.js"
 import { MessageEvents, type ToolPart, toModelMessages } from "./message-v2/index.js"
@@ -69,9 +64,9 @@ async function resolveTools(input: {
     const message = SessionStore.getMessageWithParts(inputData.sessionID, inputData.messageID)
     if (!message) return
 
-    const part = [...message.parts].reverse().find(
-      (candidate): candidate is ToolPart => candidate.type === "tool" && candidate.callID === inputData.callID,
-    )
+    const part = [...message.parts]
+      .reverse()
+      .find((candidate): candidate is ToolPart => candidate.type === "tool" && candidate.callID === inputData.callID)
     if (!part) return
 
     const next: ToolPart = {
@@ -95,7 +90,9 @@ async function resolveTools(input: {
       inputSchema: item.parameters as any,
       async execute(args: any, options: any) {
         const toolCallID =
-          typeof options?.toolCallId === "string" && options.toolCallId.trim().length > 0 ? options.toolCallId : undefined
+          typeof options?.toolCallId === "string" && options.toolCallId.trim().length > 0
+            ? options.toolCallId
+            : undefined
 
         const ctx = {
           sessionID: input.sessionID,
@@ -141,7 +138,9 @@ async function resolveTools(input: {
 
           if (
             lastThree.length === DOOM_LOOP_THRESHOLD &&
-            lastThree.every((part) => part.tool === item.id && JSON.stringify(part.state.input) === JSON.stringify(args))
+            lastThree.every(
+              (part) => part.tool === item.id && JSON.stringify(part.state.input) === JSON.stringify(args),
+            )
           ) {
             await PermissionNext.ask({
               permission: "doom_loop",

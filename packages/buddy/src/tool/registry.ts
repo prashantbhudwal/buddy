@@ -44,7 +44,12 @@ export namespace ToolRegistry {
     agent?: Agent.Info
   }): Promise<any[]> {
     const agent = input?.agent
-    const disabled = agent ? PermissionNext.disabled(builtins.map((tool) => tool.id), agent.permission) : new Set<string>()
+    const disabled = agent
+      ? PermissionNext.disabled(
+          builtins.map((tool) => tool.id),
+          agent.permission,
+        )
+      : new Set<string>()
 
     const initialized = await Promise.all(
       builtins

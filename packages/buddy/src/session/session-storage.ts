@@ -4,7 +4,14 @@ import { Instance } from "../project/instance.js"
 import { newSessionID } from "./id.js"
 import { SessionInfo } from "./session-info.js"
 import { MessageTable, PartTable, SessionTable } from "./session.sql.js"
-import { Info, Part, type AssistantMessage, type MessageInfo, type MessagePart, type MessageWithParts } from "./message-v2/index.js"
+import {
+  Info,
+  Part,
+  type AssistantMessage,
+  type MessageInfo,
+  type MessagePart,
+  type MessageWithParts,
+} from "./message-v2/index.js"
 
 const SESSION_VERSION = "buddy-v1"
 
@@ -99,7 +106,11 @@ export namespace SessionStorage {
     }
 
     const rows = Database.use((db) => {
-      const query = db.select().from(SessionTable).where(and(...filters)).orderBy(desc(SessionTable.time_updated))
+      const query = db
+        .select()
+        .from(SessionTable)
+        .where(and(...filters))
+        .orderBy(desc(SessionTable.time_updated))
       if (!input?.limit || input.limit <= 0) {
         return query.all()
       }

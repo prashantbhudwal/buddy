@@ -113,7 +113,9 @@ export namespace Project {
   export async function fromDirectory(directory: string) {
     const normalizedDirectory = path.resolve(directory)
     const resolved = resolveFromGit(normalizedDirectory)
-    const existingRow = Database.use((db) => db.select().from(ProjectTable).where(eq(ProjectTable.id, resolved.id)).get())
+    const existingRow = Database.use((db) =>
+      db.select().from(ProjectTable).where(eq(ProjectTable.id, resolved.id)).get(),
+    )
 
     const now = Date.now()
     const existing: Info = existingRow

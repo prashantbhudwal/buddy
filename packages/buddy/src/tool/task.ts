@@ -147,7 +147,10 @@ export const TaskTool = Tool.define("task", async (initCtx) => {
   const description = DESCRIPTION.replace(
     "{agents}",
     accessibleAgents
-      .map((agent) => `- ${agent.name}: ${agent.description ?? "This subagent should only be called manually by the user."}`)
+      .map(
+        (agent) =>
+          `- ${agent.name}: ${agent.description ?? "This subagent should only be called manually by the user."}`,
+      )
       .join("\n"),
   )
 
@@ -172,9 +175,7 @@ export const TaskTool = Tool.define("task", async (initCtx) => {
         throw new Error(`Unknown agent type: ${params.subagent_type}`)
       }
 
-      const hasTaskPermission = agent.permission.some(
-        (rule) => rule.permission === "task" && rule.action !== "deny",
-      )
+      const hasTaskPermission = agent.permission.some((rule) => rule.permission === "task" && rule.action !== "deny")
 
       const taskSession = params.task_id ? SessionStore.get(params.task_id) : undefined
       const session =

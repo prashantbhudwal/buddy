@@ -83,10 +83,7 @@ export const GlobTool = Tool.define("glob", {
     const output = [
       ...matches.map((match) => match.path),
       ...(truncated
-        ? [
-            "",
-            `(Results are truncated: showing first ${LIMIT} matches. Use a narrower pattern/path.)`,
-          ]
+        ? ["", `(Results are truncated: showing first ${LIMIT} matches. Use a narrower pattern/path.)`]
         : []),
     ].join("\n")
 

@@ -40,12 +40,7 @@ async function statMtime(filepath: string) {
   return stat.mtime.getTime()
 }
 
-async function grepWithRipgrep(input: {
-  pattern: string
-  include?: string
-  searchPath: string
-  abort: AbortSignal
-}) {
+async function grepWithRipgrep(input: { pattern: string; include?: string; searchPath: string; abort: AbortSignal }) {
   const rg = Bun.which("rg")
   if (!rg) {
     return undefined
@@ -75,12 +70,7 @@ async function grepWithRipgrep(input: {
   }
 }
 
-async function grepWithFallback(input: {
-  pattern: string
-  include?: string
-  searchPath: string
-  abort: AbortSignal
-}) {
+async function grepWithFallback(input: { pattern: string; include?: string; searchPath: string; abort: AbortSignal }) {
   let regex: RegExp
   try {
     regex = new RegExp(input.pattern)
@@ -213,9 +203,7 @@ export const GrepTool = Tool.define("grep", {
     const truncated = matches.length > OUTPUT_LIMIT
     const visible = truncated ? matches.slice(0, OUTPUT_LIMIT) : matches
 
-    const outputLines = [
-      `Found ${matches.length} matches${truncated ? ` (showing first ${OUTPUT_LIMIT})` : ""}`,
-    ]
+    const outputLines = [`Found ${matches.length} matches${truncated ? ` (showing first ${OUTPUT_LIMIT})` : ""}`]
 
     let currentPath = ""
     for (const match of visible) {

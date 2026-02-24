@@ -35,7 +35,8 @@ export namespace ProviderTransform {
       return undefined
     }
 
-    const fallback = typeof OUTPUT_TOKEN_CAP === "number" && OUTPUT_TOKEN_CAP > 0 ? OUTPUT_TOKEN_CAP : OUTPUT_TOKEN_FALLBACK
+    const fallback =
+      typeof OUTPUT_TOKEN_CAP === "number" && OUTPUT_TOKEN_CAP > 0 ? OUTPUT_TOKEN_CAP : OUTPUT_TOKEN_FALLBACK
 
     return {
       anthropic: {

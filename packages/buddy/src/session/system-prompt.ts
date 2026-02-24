@@ -1,28 +1,25 @@
-import { Instance } from '../project/instance.js'
-import { CurriculumService } from '../curriculum/curriculum-service.js'
-import LEARNING_COMPANION from './prompts/learning-companion.txt'
-import MAX_STEPS from './prompts/max-steps.txt'
+import { Instance } from "../project/instance.js"
+import { CurriculumService } from "../curriculum/curriculum-service.js"
+import LEARNING_COMPANION from "./prompts/learning-companion.txt"
+import MAX_STEPS from "./prompts/max-steps.txt"
 
 // ---------------------------------------------------------------------------
 // Layer 1: Identity + Environment (stable, rebuilt every call)
 // ---------------------------------------------------------------------------
 
-export function loadEnvironment(input: {
-  providerID: string
-  modelID: string
-}): string {
+export function loadEnvironment(input: { providerID: string; modelID: string }): string {
   return [
     `You are powered by the model named ${input.modelID}. The exact model ID is ${input.providerID}/${input.modelID}.`,
     `Here is some useful information about the environment you are running in:`,
     `<env>`,
     `  Working directory: ${Instance.directory}`,
-    `  Is directory a git repo: ${Instance.project.vcs === 'git' ? 'yes' : 'no'}`,
+    `  Is directory a git repo: ${Instance.project.vcs === "git" ? "yes" : "no"}`,
     `  Platform: ${process.platform}`,
     `  Today's date: ${new Date().toDateString()}`,
     `</env>`,
     `<directories>`,
     `</directories>`,
-  ].join('\n')
+  ].join("\n")
 }
 
 // ---------------------------------------------------------------------------
@@ -43,20 +40,16 @@ export function loadBehavior(): string {
  * giving the LLM awareness of the learner's progress.
  */
 export function condenseCurriculum(markdown: string): string {
-  const lines = markdown.split('\n')
+  const lines = markdown.split("\n")
   const result: string[] = []
-  let currentHeading = ''
+  let currentHeading = ""
   let completed = 0
   let total = 0
 
   function flushSection() {
     if (currentHeading && total > 0) {
       // Insert heading with stats at the position before incomplete items
-      result.splice(
-        result.length - (total - completed),
-        0,
-        `${currentHeading} (${completed}/${total} complete)`,
-      )
+      result.splice(result.length - (total - completed), 0, `${currentHeading} (${completed}/${total} complete)`)
     }
   }
 
@@ -83,27 +76,22 @@ export function condenseCurriculum(markdown: string): string {
   }
 
   flushSection()
-  return result.join('\n')
+  return result.join("\n")
 }
 
 export async function loadCurriculumContext(): Promise<string> {
   try {
     const curriculum = await CurriculumService.peek()
     if (!curriculum) {
-      return ''
+      return ""
     }
 
     const condensed = condenseCurriculum(curriculum.markdown)
-    if (!condensed.trim()) return ''
+    if (!condensed.trim()) return ""
 
-    return [
-      '<curriculum>',
-      `Path: ${curriculum.path}`,
-      condensed,
-      '</curriculum>',
-    ].join('\n')
+    return ["<curriculum>", `Path: ${curriculum.path}`, condensed, "</curriculum>"].join("\n")
   } catch {
-    return ''
+    return ""
   }
 }
 

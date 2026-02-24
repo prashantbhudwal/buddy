@@ -30,13 +30,9 @@ function findMonorepoRoot(start: string) {
 function defaultAllowedRoots() {
   const cwd = process.cwd()
   const monorepoRoot = findMonorepoRoot(cwd)
-  return [
-    cwd,
-    monorepoRoot,
-    monorepoRoot ? path.resolve(monorepoRoot, "..") : undefined,
-    "/tmp",
-    os.tmpdir(),
-  ].filter((value): value is string => Boolean(value))
+  return [cwd, monorepoRoot, monorepoRoot ? path.resolve(monorepoRoot, "..") : undefined, "/tmp", os.tmpdir()].filter(
+    (value): value is string => Boolean(value),
+  )
 }
 
 function decodeDirectory(raw: string) {

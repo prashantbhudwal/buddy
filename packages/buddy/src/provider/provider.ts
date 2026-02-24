@@ -39,11 +39,7 @@ export type ProviderInfo = {
 const CONTEXT_LIMIT_FALLBACK = 128_000
 const OUTPUT_LIMIT_FALLBACK = 32_000
 
-function fromModelsDevModel(input: {
-  providerID: string
-  modelID: string
-  model: ModelsDev.Model
-}): ProviderModel {
+function fromModelsDevModel(input: { providerID: string; modelID: string; model: ModelsDev.Model }): ProviderModel {
   const model = input.model
   return {
     providerID: input.providerID,

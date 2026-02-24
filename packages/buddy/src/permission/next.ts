@@ -114,7 +114,7 @@ export namespace PermissionNext {
       db.select().from(PermissionTable).where(eq(PermissionTable.project_id, projectID)).get(),
     )
 
-    const approved = row ? Ruleset.safeParse(row.data).data ?? [] : []
+    const approved = row ? (Ruleset.safeParse(row.data).data ?? []) : []
     const created: ProjectState = {
       approved,
       pending: new Map(),

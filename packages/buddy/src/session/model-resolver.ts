@@ -35,10 +35,7 @@ export class UnsupportedRuntimeModelError extends Error {
   }
 }
 
-export async function resolveRuntimeModel(input?: {
-  requestModel?: ModelIdentity
-  agent?: Agent.Info
-}) {
+export async function resolveRuntimeModel(input?: { requestModel?: ModelIdentity; agent?: Agent.Info }) {
   const config = await Config.get()
   const configured = config.model ? parseModel(config.model) : undefined
   const candidate = input?.requestModel ?? input?.agent?.model ?? configured ?? KIMI_FALLBACK
@@ -50,10 +47,7 @@ export async function resolveRuntimeModel(input?: {
   return candidate
 }
 
-export async function resolveSmallRuntimeModel(input?: {
-  requestModel?: ModelIdentity
-  agent?: Agent.Info
-}) {
+export async function resolveSmallRuntimeModel(input?: { requestModel?: ModelIdentity; agent?: Agent.Info }) {
   const config = await Config.get()
   const configured = config.small_model ? parseModel(config.small_model) : undefined
   const candidate = input?.requestModel ?? input?.agent?.model ?? configured ?? KIMI_FALLBACK
