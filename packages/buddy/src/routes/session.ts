@@ -266,16 +266,24 @@ export const SessionRoutes = () =>
       ),
       validator(
         "json",
-        z.object({
-          content: z.string().min(1),
+        SessionPrompt.PromptInput.omit({
+          sessionID: true,
         }),
       ),
       async (c) => {
         const sessionID = c.req.valid("param").sessionID
         const body = c.req.valid("json")
+        const contentLength =
+          typeof body.content === "string"
+            ? body.content.length
+            : Array.isArray(body.parts)
+              ? body.parts
+                  .filter((part): part is { type: "text"; text: string } => part.type === "text")
+                  .reduce((sum, part) => sum + part.text.length, 0)
+              : 0
         logSession("route.session.prompt", {
           sessionID,
-          contentLength: body.content.length,
+          contentLength,
         })
 
         if (!SessionStore.get(sessionID)) {
@@ -286,7 +294,7 @@ export const SessionRoutes = () =>
         try {
           const result = await SessionPrompt.prompt({
             sessionID,
-            content: body.content,
+            ...body,
           })
           logSession("route.session.prompt.accepted", {
             sessionID,

@@ -12,6 +12,11 @@ describe("parity.session.message-v2", () => {
       id: "message_user_1",
       sessionID: "session_1",
       role: "user",
+      agent: "build",
+      model: {
+        providerID: "anthropic",
+        modelID: "k2p5",
+      },
       time: { created: Date.now() },
     })
     expect(user.role).toBe("user")
@@ -20,7 +25,15 @@ describe("parity.session.message-v2", () => {
       id: "message_assistant_1",
       sessionID: "session_1",
       role: "assistant",
+      parentID: "message_user_1",
+      providerID: "anthropic",
+      modelID: "k2p5",
+      mode: "chat",
       agent: "build",
+      path: {
+        cwd: "/tmp",
+        root: "/tmp",
+      },
       time: { created: Date.now() },
       cost: 0,
       tokens: {
@@ -44,6 +57,11 @@ describe("parity.session.message-v2", () => {
           id: "m_user",
           sessionID: "session_1",
           role: "user",
+          agent: "build",
+          model: {
+            providerID: "anthropic",
+            modelID: "k2p5",
+          },
           time: { created: 1 },
         },
         parts: [
@@ -61,7 +79,15 @@ describe("parity.session.message-v2", () => {
           id: "m_assistant",
           sessionID: "session_1",
           role: "assistant",
+          parentID: "m_user",
+          providerID: "anthropic",
+          modelID: "k2p5",
+          mode: "chat",
           agent: "build",
+          path: {
+            cwd: "/tmp",
+            root: "/tmp",
+          },
           time: { created: 2 },
           cost: 0,
           tokens: {
@@ -84,6 +110,8 @@ describe("parity.session.message-v2", () => {
               status: "completed",
               input: {},
               output: "file-a\nfile-b",
+              metadata: {},
+              title: "list",
               time: { start: 2, end: 3 },
             },
           },

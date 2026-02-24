@@ -4,7 +4,7 @@ import { Instance } from "../project/instance.js"
 import { newSessionID } from "./id.js"
 import { SessionInfo } from "./session-info.js"
 import { MessageTable, PartTable, SessionTable } from "./session.sql.js"
-import type { AssistantMessage, MessageInfo, MessagePart, MessageWithParts } from "./message-v2/index.js"
+import { Info, Part, type AssistantMessage, type MessageInfo, type MessagePart, type MessageWithParts } from "./message-v2/index.js"
 
 const SESSION_VERSION = "buddy-v1"
 
@@ -34,20 +34,20 @@ function toSessionInfo(row: typeof SessionTable.$inferSelect): SessionInfo.Info 
 }
 
 function toMessageInfo(row: MessageRow): MessageInfo {
-  return {
+  return Info.parse({
     id: row.id,
     sessionID: row.session_id,
     ...(row.data as Record<string, unknown>),
-  } as MessageInfo
+  })
 }
 
 function toPart(row: PartRow): MessagePart {
-  return {
+  return Part.parse({
     id: row.id,
     sessionID: row.session_id,
     messageID: row.message_id,
     ...(row.data as Record<string, unknown>),
-  } as MessagePart
+  })
 }
 
 function partCreatedTime(part: MessagePart) {
@@ -260,10 +260,11 @@ export namespace SessionStorage {
   }
 
   export function appendMessage(info: MessageInfo) {
-    assertSessionRow(info.sessionID)
-    const { id, sessionID, ...data } = info
-    const created = info.time.created
-    const updated = info.time.completed ?? info.time.created
+    const parsed = Info.parse(info)
+    assertSessionRow(parsed.sessionID)
+    const { id, sessionID, ...data } = parsed
+    const created = parsed.time.created
+    const updated = "completed" in parsed.time ? (parsed.time.completed ?? parsed.time.created) : parsed.time.created
     Database.use((db) => {
       db.insert(MessageTable)
         .values({
@@ -283,7 +284,7 @@ export namespace SessionStorage {
         .run()
     })
     touch(sessionID)
-    return getMessageWithParts(sessionID, info.id)
+    return getMessageWithParts(sessionID, parsed.id)
   }
 
   export function updateMessage(info: MessageInfo) {
@@ -291,30 +292,31 @@ export namespace SessionStorage {
   }
 
   export function appendPart(part: MessagePart) {
-    assertSessionRow(part.sessionID)
-    assertMessageRow(part.sessionID, part.messageID)
-    const { id, messageID, sessionID, ...data } = part
+    const parsed = Part.parse(part)
+    assertSessionRow(parsed.sessionID)
+    assertMessageRow(parsed.sessionID, parsed.messageID)
+    const { id, messageID, sessionID, ...data } = parsed
     Database.use((db) => {
       db.insert(PartTable)
         .values({
           id,
           message_id: messageID,
           session_id: sessionID,
-          time_created: partCreatedTime(part),
-          time_updated: partUpdatedTime(part),
+          time_created: partCreatedTime(parsed),
+          time_updated: partUpdatedTime(parsed),
           data,
         })
         .onConflictDoUpdate({
           target: PartTable.id,
           set: {
             data,
-            time_updated: partUpdatedTime(part),
+            time_updated: partUpdatedTime(parsed),
           },
         })
         .run()
     })
     touch(sessionID)
-    return part
+    return parsed
   }
 
   export function updatePart(part: MessagePart) {

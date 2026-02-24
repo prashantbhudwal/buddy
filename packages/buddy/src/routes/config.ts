@@ -3,15 +3,39 @@ import { describeRoute, resolver, validator } from "hono-openapi"
 import z from "zod"
 import { Agent } from "../agent/agent.js"
 import { Config, JsonError, InvalidError } from "../config/config.js"
+import { Provider } from "../provider/provider.js"
 
 const ProviderModel = z.object({
   id: z.string(),
-  name: z.string().optional(),
+  providerID: z.string(),
+  name: z.string(),
+  family: z.string().optional(),
+  api: z.object({
+    id: z.string(),
+    npm: z.string().optional(),
+  }),
+  limit: z.object({
+    context: z.number(),
+    input: z.number().optional(),
+    output: z.number(),
+  }),
+  modalities: z
+    .object({
+      input: z.array(z.string()),
+      output: z.array(z.string()),
+    })
+    .optional(),
+  reasoning: z.boolean(),
+  options: z.record(z.string(), z.any()),
+  variants: z.record(z.string(), z.record(z.string(), z.any())).optional(),
 })
 
 const ProviderInfo = z.object({
   id: z.string(),
   name: z.string(),
+  npm: z.string().optional(),
+  api: z.string().optional(),
+  env: z.array(z.string()),
   models: z.array(ProviderModel),
 })
 
@@ -22,61 +46,8 @@ const AgentInfo = z.object({
   hidden: z.boolean().optional(),
 })
 
-function parseModel(model: string) {
-  const index = model.indexOf("/")
-  if (index <= 0 || index >= model.length - 1) return undefined
-  return {
-    providerID: model.slice(0, index),
-    modelID: model.slice(index + 1),
-  }
-}
-
-function providerPayload(config: Config.Info) {
-  const providers: Array<z.infer<typeof ProviderInfo>> = [
-    {
-      id: "anthropic",
-      name: "Kimi (Anthropic API Compatible)",
-      models: [
-        {
-          id: "k2p5",
-          name: "Kimi k2p5",
-        },
-      ],
-    },
-  ]
-
-  for (const [providerID, providerConfig] of Object.entries(config.provider ?? {})) {
-    const models = Object.keys(providerConfig.models ?? {})
-      .filter((item) => item.length > 0)
-      .map((id) => ({ id }))
-
-    if (models.length === 0) continue
-
-    const exists = providers.find((item) => item.id === providerID)
-    if (exists) {
-      const merged = new Map(exists.models.map((model) => [model.id, model]))
-      for (const model of models) merged.set(model.id, model)
-      exists.models = Array.from(merged.values())
-      continue
-    }
-
-    providers.push({
-      id: providerID,
-      name: providerID,
-      models,
-    })
-  }
-
-  const defaults: Record<string, string> = {}
-  for (const provider of providers) {
-    defaults[provider.id] = provider.models[0]?.id ?? ""
-  }
-
-  const selected = parseModel(config.model ?? "")
-  if (selected?.providerID && selected?.modelID) {
-    defaults[selected.providerID] = selected.modelID
-  }
-
+async function providerPayload() {
+  const [providers, defaults] = await Promise.all([Provider.list(), Provider.defaults()])
   return {
     providers,
     default: defaults,
@@ -172,8 +143,7 @@ export const ConfigRoutes = () =>
         },
       }),
       async (c) => {
-        const config = await Config.get()
-        return c.json(providerPayload(config))
+        return c.json(await providerPayload())
       },
     )
     .get(

@@ -2,10 +2,19 @@ import { generateText } from "ai"
 import z from "zod"
 import { Agent } from "../agent/agent.js"
 import { Bus } from "../bus/index.js"
+import { Instance } from "../project/instance.js"
 import { kimiModel } from "./kimi.js"
 import { resolveRuntimeModel, resolveSmallRuntimeModel } from "./model-resolver.js"
 import { newMessageID, newPartID } from "./id.js"
-import { MessageEvents, type AssistantMessage, type MessageWithParts, type UserMessage } from "./message-v2/index.js"
+import {
+  Format,
+  MessageEvents,
+  type AssistantMessage,
+  type MessagePart,
+  toMessageError,
+  type MessageWithParts,
+  type UserMessage,
+} from "./message-v2/index.js"
 import { processAssistantResponse } from "./processor.js"
 import { SessionStore } from "./session-store.js"
 import { SessionInfo } from "./session-info.js"
@@ -33,18 +42,75 @@ function emptyTokens() {
 }
 
 export namespace SessionPrompt {
+  const PromptPartInput = z.discriminatedUnion("type", [
+    z.object({
+      id: z.string().optional(),
+      type: z.literal("text"),
+      text: z.string(),
+      synthetic: z.boolean().optional(),
+      ignored: z.boolean().optional(),
+      metadata: z.record(z.string(), z.any()).optional(),
+    }),
+    z.object({
+      id: z.string().optional(),
+      type: z.literal("file"),
+      mime: z.string(),
+      filename: z.string().optional(),
+      url: z.string(),
+    }),
+    z.object({
+      id: z.string().optional(),
+      type: z.literal("agent"),
+      name: z.string(),
+      source: z
+        .object({
+          value: z.string(),
+          start: z.number().int(),
+          end: z.number().int(),
+        })
+        .optional(),
+    }),
+    z.object({
+      id: z.string().optional(),
+      type: z.literal("subtask"),
+      prompt: z.string(),
+      description: z.string(),
+      agent: z.string(),
+      model: z
+        .object({
+          providerID: z.string(),
+          modelID: z.string(),
+        })
+        .optional(),
+      command: z.string().optional(),
+    }),
+  ])
+
   export const PromptInput = z.object({
     sessionID: z.string(),
-    content: z.string().min(1),
+    messageID: z.string().optional(),
+    content: z.string().default(""),
     agent: z.string().optional(),
     noReply: z.boolean().optional(),
     tools: z.record(z.string(), z.boolean()).optional(),
+    format: Format.optional(),
+    system: z.string().optional(),
+    variant: z.string().optional(),
+    parts: z.array(PromptPartInput).optional(),
     model: z
       .object({
         providerID: z.string(),
         modelID: z.string(),
       })
       .optional(),
+  }).superRefine((value, ctx) => {
+    if (value.content.trim().length > 0) return
+    if (value.parts && value.parts.length > 0) return
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "content or parts must be provided",
+      path: ["content"],
+    })
   })
 
   async function publishMessage(message: MessageWithParts) {
@@ -133,6 +199,10 @@ export namespace SessionPrompt {
       role: "user",
       agent: agentName,
       model,
+      tools: parsed.tools,
+      format: parsed.format,
+      variant: parsed.variant,
+      system: parsed.system,
       time: {
         created: now,
       },
@@ -143,26 +213,79 @@ export namespace SessionPrompt {
       throw new Error("Failed to append user message")
     }
 
-    const userPart = {
-      id: newPartID(),
-      sessionID: parsed.sessionID,
-      messageID: userInfo.id,
-      type: "text" as const,
-      text: parsed.content,
-      time: {
-        start: now,
-      },
+    const inputParts: Array<z.infer<typeof PromptPartInput>> = []
+    if (parsed.content.trim().length > 0) {
+      inputParts.push({
+        type: "text",
+        text: parsed.content,
+      })
     }
-    SessionStore.appendPart(userPart)
+    inputParts.push(...(parsed.parts ?? []))
+
+    const userParts = inputParts.map((part): MessagePart => {
+      const id = part.id ?? newPartID()
+      const base = {
+        id,
+        sessionID: parsed.sessionID,
+        messageID: userInfo.id,
+      }
+
+      if (part.type === "text") {
+        return {
+          ...base,
+          type: "text",
+          text: part.text,
+          synthetic: part.synthetic,
+          ignored: part.ignored,
+          metadata: part.metadata,
+          time: {
+            start: now,
+          },
+        }
+      }
+
+      if (part.type === "file") {
+        return {
+          ...base,
+          type: "file",
+          mime: part.mime,
+          filename: part.filename,
+          url: part.url,
+        }
+      }
+
+      if (part.type === "agent") {
+        return {
+          ...base,
+          type: "agent",
+          name: part.name,
+          source: part.source,
+        }
+      }
+
+      return {
+        ...base,
+        type: "subtask",
+        prompt: part.prompt,
+        description: part.description,
+        agent: part.agent,
+        model: part.model,
+        command: part.command,
+      }
+    })
+
+    for (const part of userParts) {
+      SessionStore.appendPart(part)
+    }
     logSession("prompt.user.created", {
       sessionID: parsed.sessionID,
       messageID: userInfo.id,
-      partID: userPart.id,
+      partCount: userParts.length,
     })
 
     const publishedUserMessage = {
       info: userInfo,
-      parts: [userPart],
+      parts: userParts,
     } satisfies MessageWithParts
     await publishMessage(publishedUserMessage)
 
@@ -174,7 +297,16 @@ export namespace SessionPrompt {
       id: newMessageID(),
       sessionID: parsed.sessionID,
       role: "assistant",
+      parentID: userInfo.id,
+      providerID: model.providerID,
+      modelID: model.modelID,
+      mode: "chat",
       agent: agentName,
+      path: {
+        cwd: Instance.directory,
+        root: Instance.directory,
+      },
+      variant: parsed.variant,
       time: {
         created: Date.now(),
       },
@@ -219,7 +351,7 @@ export namespace SessionPrompt {
 
       const next: AssistantMessage = {
         ...failed,
-        error: String(error),
+        error: toMessageError(error),
       }
       SessionStore.updateMessage(next)
       await Bus.publish(MessageEvents.Updated, { info: next })

@@ -2,6 +2,7 @@ import { streamText, tool, type ModelMessage } from "ai"
 import { Agent } from "../agent/agent.js"
 import { Bus } from "../bus/index.js"
 import { PermissionNext } from "../permission/next.js"
+import { Provider } from "../provider/provider.js"
 import { ToolRegistry } from "../tool/registry.js"
 import {
   loadBehavior,
@@ -255,7 +256,16 @@ export async function streamAssistant(input: StreamAssistantInput) {
     }
   }
 
-  const modelMessages = toModelMessages(input.history)
+  const resolvedModel = await Provider.findModel({
+    providerID: modelIdentity.providerID,
+    modelID: modelIdentity.modelID,
+  })
+
+  const modelMessages = toModelMessages(input.history, {
+    providerID: modelIdentity.providerID,
+    modelID: modelIdentity.modelID,
+    apiNpm: resolvedModel?.api.npm,
+  })
   const messages = input.injectMaxStepsPrompt
     ? [...modelMessages, { role: "assistant" as const, content: loadMaxStepsPrompt() }]
     : modelMessages
@@ -268,7 +278,7 @@ export async function streamAssistant(input: StreamAssistantInput) {
     ...messages,
   ]
 
-  const maxOutputTokens = ProviderTransform.maxOutputTokens(modelIdentity)
+  const maxOutputTokens = await ProviderTransform.maxOutputTokens(modelIdentity)
 
   return streamText({
     async experimental_repairToolCall(failed) {

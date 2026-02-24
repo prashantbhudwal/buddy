@@ -2,6 +2,7 @@ import { Agent } from "../agent/agent.js"
 import { Bus } from "../bus/index.js"
 import { Config } from "../config/config.js"
 import { PermissionNext } from "../permission/next.js"
+import { Provider } from "../provider/provider.js"
 import { streamAssistant } from "./llm.js"
 import { errorSession, logSession } from "./debug.js"
 import { newPartID } from "./id.js"
@@ -12,6 +13,7 @@ import {
   type MessageReasoningPart,
   type MessageTextPart,
   type MessageToolPart,
+  toMessageError,
 } from "./message-v2/index.js"
 import { SessionInfo } from "./session-info.js"
 import { SessionStore } from "./session-store.js"
@@ -126,17 +128,25 @@ function parseToolResult(output: unknown) {
   if (isObjectRecord(output)) {
     const value = output
     const direct = value.output
+    const attachments = Array.isArray(value.attachments)
+      ? value.attachments.filter(
+          (item): item is { mime: string; filename?: string; url: string } =>
+            isObjectRecord(item) && typeof item.mime === "string" && typeof item.url === "string",
+        )
+      : undefined
     return {
       output: outputToString(direct === undefined ? output : direct),
-      metadata: asOptionalObjectRecord(value.metadata),
+      metadata: asObjectRecord(value.metadata),
       title: typeof value.title === "string" ? value.title : undefined,
+      attachments,
     }
   }
 
   return {
     output: outputToString(output),
-    metadata: undefined,
+    metadata: {},
     title: undefined,
+    attachments: undefined,
   }
 }
 
@@ -442,11 +452,12 @@ async function processStep(input: {
               input: asObjectRecord(value.input, existing.state.input),
               output: parsedOutput.output,
               metadata: parsedOutput.metadata,
-              title: parsedOutput.title,
+              title: parsedOutput.title ?? existing.tool,
               time: {
                 start: existing.state.time.start,
                 end: Date.now(),
               },
+              attachments: parsedOutput.attachments,
             },
           }
           SessionStore.updatePart(completed)
@@ -636,7 +647,7 @@ export async function processAssistantResponse(input: ProcessInput) {
     if (current) {
       const next: AssistantMessage = {
         ...current,
-        error: wasAborted ? undefined : String(error),
+        error: wasAborted ? undefined : toMessageError(error),
       }
       SessionStore.updateMessage(next)
       await publishMessage(next)
@@ -684,10 +695,22 @@ export async function processAssistantResponse(input: ProcessInput) {
 
     await prune({ sessionID: input.sessionID })
 
+    const resolvedModel = await Provider.findModel({
+      providerID: current?.providerID,
+      modelID: current?.modelID,
+    })
+    const modelIdentity =
+      current?.providerID && current?.modelID
+        ? {
+            providerID: current.providerID,
+            modelID: current.modelID,
+          }
+        : undefined
+
     await checkOverflow({
       sessionID: input.sessionID,
-      contextLimit: 128_000,
-      maxOutput: ProviderTransform.maxOutputTokens(),
+      contextLimit: resolvedModel?.limit.context ?? 128_000,
+      maxOutput: await ProviderTransform.maxOutputTokens(modelIdentity),
       lastUsageTotal: messageUsage.total,
     })
 
