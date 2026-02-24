@@ -1,4 +1,5 @@
 import z from "zod"
+import { APIError } from "./error.js"
 
 const PartBase = z.object({
   id: z.string(),
@@ -27,15 +28,54 @@ export const ReasoningPart = PartBase.extend({
   metadata: z.record(z.string(), z.any()).optional(),
 })
 
+const FilePartSourceBase = z.object({
+  text: z.object({
+    value: z.string(),
+    start: z.number().int(),
+    end: z.number().int(),
+  }),
+})
+
+export const FileSource = FilePartSourceBase.extend({
+  type: z.literal("file"),
+  path: z.string(),
+})
+
+export const SymbolSource = FilePartSourceBase.extend({
+  type: z.literal("symbol"),
+  path: z.string(),
+  range: z.record(z.string(), z.any()),
+  name: z.string(),
+  kind: z.number().int(),
+})
+
+export const ResourceSource = FilePartSourceBase.extend({
+  type: z.literal("resource"),
+  clientName: z.string(),
+  uri: z.string(),
+})
+
+export const FilePartSource = z.discriminatedUnion("type", [FileSource, SymbolSource, ResourceSource])
+
+export const FilePart = PartBase.extend({
+  type: z.literal("file"),
+  mime: z.string(),
+  filename: z.string().optional(),
+  url: z.string(),
+  source: FilePartSource.optional(),
+})
+
 export const ToolStatePending = z.object({
   status: z.literal("pending"),
-  input: z.record(z.string(), z.any()).optional(),
-  raw: z.string().optional(),
+  input: z.record(z.string(), z.any()),
+  raw: z.string(),
 })
 
 export const ToolStateRunning = z.object({
   status: z.literal("running"),
   input: z.record(z.string(), z.any()),
+  title: z.string().optional(),
+  metadata: z.record(z.string(), z.any()).optional(),
   time: z.object({
     start: z.number(),
   }),
@@ -45,19 +85,30 @@ export const ToolStateCompleted = z.object({
   status: z.literal("completed"),
   input: z.record(z.string(), z.any()),
   output: z.string(),
-  metadata: z.record(z.string(), z.any()).optional(),
-  title: z.string().optional(),
+  metadata: z.record(z.string(), z.any()),
+  title: z.string(),
   time: z.object({
     start: z.number(),
     end: z.number(),
     compacted: z.number().optional(),
   }),
+  attachments: z
+    .array(
+      z.object({
+        mime: z.string(),
+        filename: z.string().optional(),
+        url: z.string(),
+        source: FilePartSource.optional(),
+      }),
+    )
+    .optional(),
 })
 
 export const ToolStateError = z.object({
   status: z.literal("error"),
-  input: z.record(z.string(), z.any()).optional(),
+  input: z.record(z.string(), z.any()),
   error: z.string(),
+  metadata: z.record(z.string(), z.any()).optional(),
   time: z.object({
     start: z.number(),
     end: z.number(),
@@ -79,13 +130,6 @@ export const ToolPart = PartBase.extend({
   metadata: z.record(z.string(), z.any()).optional(),
 })
 
-export const FilePart = PartBase.extend({
-  type: z.literal("file"),
-  mime: z.string(),
-  filename: z.string().optional(),
-  url: z.string(),
-})
-
 export const StepStartPart = PartBase.extend({
   type: z.literal("step-start"),
   snapshot: z.string().optional(),
@@ -93,21 +137,19 @@ export const StepStartPart = PartBase.extend({
 
 export const StepFinishPart = PartBase.extend({
   type: z.literal("step-finish"),
-  reason: z.string().optional(),
+  reason: z.string(),
   snapshot: z.string().optional(),
-  tokens: z
-    .object({
-      total: z.number().optional(),
-      input: z.number(),
-      output: z.number(),
-      reasoning: z.number(),
-      cache: z.object({
-        read: z.number(),
-        write: z.number(),
-      }),
-    })
-    .optional(),
-  cost: z.number().optional(),
+  tokens: z.object({
+    total: z.number().optional(),
+    input: z.number(),
+    output: z.number(),
+    reasoning: z.number(),
+    cache: z.object({
+      read: z.number(),
+      write: z.number(),
+    }),
+  }),
+  cost: z.number(),
 })
 
 export const PatchPart = PartBase.extend({
@@ -143,12 +185,19 @@ export const SubtaskPart = PartBase.extend({
 export const AgentPart = PartBase.extend({
   type: z.literal("agent"),
   name: z.string(),
+  source: z
+    .object({
+      value: z.string(),
+      start: z.number().int(),
+      end: z.number().int(),
+    })
+    .optional(),
 })
 
 export const RetryPart = PartBase.extend({
   type: z.literal("retry"),
   attempt: z.number(),
-  error: z.string(),
+  error: APIError,
   time: z.object({
     created: z.number(),
   }),
@@ -173,3 +222,9 @@ export type Part = z.infer<typeof Part>
 export type TextPart = z.infer<typeof TextPart>
 export type ReasoningPart = z.infer<typeof ReasoningPart>
 export type ToolPart = z.infer<typeof ToolPart>
+export type ToolState = z.infer<typeof ToolState>
+export type ToolStatePending = z.infer<typeof ToolStatePending>
+export type ToolStateRunning = z.infer<typeof ToolStateRunning>
+export type ToolStateCompleted = z.infer<typeof ToolStateCompleted>
+export type ToolStateError = z.infer<typeof ToolStateError>
+export type StepFinishPart = z.infer<typeof StepFinishPart>

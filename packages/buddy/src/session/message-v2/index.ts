@@ -1,10 +1,21 @@
 export { MessageEvents } from "./events.js"
 export {
+  APIError,
+  AssistantError,
+  AuthError,
+  ContextOverflowError,
+  toMessageError,
+  type APIError as APIErrorObject,
+  type AssistantError as AssistantErrorObject,
+} from "./error.js"
+export {
   Assistant,
+  Format,
   Info,
   User,
   WithParts,
   type Assistant as AssistantMessage,
+  type Format as MessageOutputFormat,
   type Info as MessageInfo,
   type User as UserMessage,
   type WithParts as MessageWithParts,
