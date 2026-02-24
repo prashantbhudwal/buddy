@@ -22,6 +22,11 @@
     "sdk:generate": "bun run --cwd packages/sdk generate"
   },
   "devDependencies": {
+    "prettier": "3.6.2",
     "turbo": "^2.0.0"
+  },
+  "prettier": {
+    "semi": false,
+    "printWidth": 120
   }
 }
