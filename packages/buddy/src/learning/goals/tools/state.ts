@@ -1,7 +1,8 @@
 import z from "zod"
 import { createBuddyTool, type BuddyToolContext } from "../../shared/create-buddy-tool.js"
-import { LearnerPath } from "../../learner/path.js"
 import { LearnerService } from "../../learner/service.js"
+import { LearnerArtifactPath } from "../../learner/artifacts/path.js"
+import type { GoalArtifact } from "../../learner/artifacts/types.js"
 import { GoalStateSchema, createGoalToolResult } from "../types.js"
 
 const goalStateTool = createBuddyTool("goal_state", {
@@ -15,7 +16,17 @@ const goalStateTool = createBuddyTool("goal_state", {
       metadata: {},
     })
 
-    const goals = await LearnerService.getWorkspaceGoals(ctx.directory)
+    const goals = (await LearnerService.listArtifacts({
+      directory: ctx.directory,
+      kind: "goal",
+      status: "active",
+    }) as GoalArtifact[]).map((goal) => ({
+      goalId: goal.id,
+      setId: goal.setId ?? "unspecified",
+      scope: goal.scope,
+      contextLabel: goal.contextLabel,
+      createdAt: goal.createdAt,
+    }))
     const activeSets = Array.from(
       new Map(
         goals.map((goal) => [
@@ -32,7 +43,7 @@ const goalStateTool = createBuddyTool("goal_state", {
     )
 
     const result = GoalStateSchema.parse({
-      filePath: LearnerPath.goals(),
+      filePath: LearnerArtifactPath.kindDirectory(ctx.directory, "goal"),
       exists: goals.length > 0,
       activeSetCount: activeSets.length,
       activeSets,

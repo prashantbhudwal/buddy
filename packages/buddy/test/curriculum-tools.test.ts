@@ -28,7 +28,7 @@ describe("curriculum tools", () => {
           providerID: "opencode",
           modelID: "claude-sonnet",
         })
-        const curriculumRead = tools.find((tool) => tool.id === "curriculum_read")
+        const curriculumRead = tools.find((tool) => tool.id === "learner_snapshot_read")
         const curriculumUpdate = tools.find((tool) => tool.id === "curriculum_update")
 
         expect(curriculumRead).toBeDefined()
@@ -39,7 +39,7 @@ describe("curriculum tools", () => {
       },
     })
 
-    expect(result.output).toContain("# Learning Plan")
-    expect(result.output).toContain("No relevant goals exist yet.")
+    expect(result.output).toContain("# Learning Snapshot")
+    expect(result.output).toContain("No active goals in this workspace yet.")
   })
 })

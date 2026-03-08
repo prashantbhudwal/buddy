@@ -75,16 +75,13 @@ export function createSessionMessageTransform(input: { context: SessionTransform
           body,
           config: projectConfig,
         })
-        const workspace = await LearnerService.ensureWorkspaceContext(input.context.directory)
         const focusGoalIds = resolveFocusGoalIds(body)
-        const learnerDigest = await LearnerService.queryForPrompt({
+        const learnerDigest = await LearnerService.buildPromptContext({
           directory: input.context.directory,
           query: {
-            workspaceId: workspace.workspaceId,
             persona: persona.id,
             intent: intentOverride,
             focusGoalIds,
-            tokenBudget: 1400,
           },
         })
         const workspaceState: WorkspaceState = teachingContext?.active ? "interactive" : "chat"
@@ -165,7 +162,7 @@ export function createSessionMessageTransform(input: { context: SessionTransform
           },
         })
         observeAcceptedMessage = async () => {
-          await LearnerService.observeLearnerMessage({
+          await LearnerService.recordLearnerMessageEvent({
             directory: input.context.directory,
             content: allTextContent,
             goalIds: focusGoalIds.length > 0 ? focusGoalIds : learnerDigest.relevantGoalIds,
